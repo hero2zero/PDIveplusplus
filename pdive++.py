@@ -59,7 +59,7 @@ VERSION = "1.3.6"
 
 
 class PDIve:
-    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, amass_timeout=None, json_only=False, no_json=False):
+    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, amass_timeout=None, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
         self.targets = targets if isinstance(targets, list) else [targets]
         self.output_dir = output_dir
         self.threads = threads
@@ -68,6 +68,19 @@ class PDIve:
         self.amass_timeout = amass_timeout
         self.json_only = json_only
         self.no_json = no_json
+        self.dns_timeout = dns_timeout
+        self.whois_timeout = whois_timeout
+        self.enable_whois = enable_whois
+        self.checkpoint_interval = checkpoint_interval
+        self.checkpoint_path = checkpoint_path or os.path.join(output_dir, "scan_checkpoint.json")
+        self.scan_state = {
+            "completed_phases": [],
+            "amass_hosts": [],
+            "live_hosts": []
+        }
+        self._checkpoint_lock = threading.Lock()
+        self._checkpoint_stop_event = threading.Event()
+        self._checkpoint_thread = None
         self.results = {
             "scan_info": {
                 "targets": self.targets,
@@ -82,6 +95,58 @@ class PDIve:
         }
 
         os.makedirs(output_dir, exist_ok=True)
+
+    def _save_checkpoint(self):
+        payload = {
+            "version": 1,
+            "saved_at": datetime.now().isoformat(),
+            "config": {
+                "targets": self.targets,
+                "output_dir": self.output_dir,
+                "threads": self.threads,
+                "discovery_mode": self.discovery_mode,
+                "enable_ping": self.enable_ping,
+                "amass_timeout": self.amass_timeout,
+                "json_only": self.json_only,
+                "no_json": self.no_json,
+                "dns_timeout": self.dns_timeout,
+                "whois_timeout": self.whois_timeout,
+                "enable_whois": self.enable_whois
+            },
+            "scan_state": self.scan_state,
+            "results": self.results
+        }
+        with self._checkpoint_lock:
+            try:
+                with open(self.checkpoint_path, 'w') as f:
+                    json.dump(payload, f, indent=2, default=str)
+            except Exception as e:
+                print(f"{Fore.YELLOW}[!] Failed to write checkpoint: {e}{Style.RESET_ALL}")
+
+    def _checkpoint_worker(self):
+        while not self._checkpoint_stop_event.is_set():
+            time.sleep(self.checkpoint_interval)
+            if self._checkpoint_stop_event.is_set():
+                break
+            self._save_checkpoint()
+
+    def _start_checkpointing(self):
+        if self.checkpoint_interval <= 0:
+            return
+        self._checkpoint_stop_event.clear()
+        self._checkpoint_thread = threading.Thread(target=self._checkpoint_worker, daemon=True)
+        self._checkpoint_thread.start()
+
+    def _stop_checkpointing(self):
+        if self._checkpoint_thread:
+            self._checkpoint_stop_event.set()
+            self._checkpoint_thread.join(timeout=2)
+            self._checkpoint_thread = None
+
+    def _mark_phase_complete(self, phase):
+        if phase not in self.scan_state["completed_phases"]:
+            self.scan_state["completed_phases"].append(phase)
+        self._save_checkpoint()
 
     def print_banner(self):
         targets_display = ', '.join(self.targets[:3])
@@ -1010,11 +1075,15 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             return hostname  # Already an IP address
         except ValueError:
             # It's a hostname, try to resolve it
+            prev_timeout = socket.getdefaulttimeout()
             try:
+                socket.setdefaulttimeout(self.dns_timeout)
                 ip_address = socket.gethostbyname(hostname)
                 return ip_address
-            except socket.gaierror:
+            except (socket.gaierror, Exception):
                 return "N/A"  # Resolution failed
+            finally:
+                socket.setdefaulttimeout(prev_timeout)
 
     def reverse_dns_lookup(self, ip_address):
         """Perform reverse DNS lookup on IP address"""
@@ -1023,10 +1092,17 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             ipaddress.ip_address(ip_address)
 
             # Perform reverse DNS lookup
-            hostname, _, _ = socket.gethostbyaddr(ip_address)
-            return hostname
-        except (socket.herror, socket.gaierror, ValueError):
-            return "N/A"  # Reverse lookup failed or invalid IP
+            prev_timeout = socket.getdefaulttimeout()
+            try:
+                socket.setdefaulttimeout(self.dns_timeout)
+                hostname, _, _ = socket.gethostbyaddr(ip_address)
+                return hostname
+            except (socket.herror, socket.gaierror, ValueError, Exception):
+                return "N/A"  # Reverse lookup failed or invalid IP
+            finally:
+                socket.setdefaulttimeout(prev_timeout)
+        except ValueError:
+            return "N/A"
 
     def whois_lookup(self, target):
         """Perform WHOIS lookup on domain or IP address"""
@@ -1036,29 +1112,48 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         try:
             print(f"{Fore.CYAN}[*] Performing WHOIS lookup for {target}...{Style.RESET_ALL}")
 
-            # Perform WHOIS query
-            w = whois.whois(target)
+            result_holder = {}
+            error_holder = {}
 
-            # Extract useful information
-            whois_data = {
-                "domain_name": w.domain_name if hasattr(w, 'domain_name') else "N/A",
-                "registrar": w.registrar if hasattr(w, 'registrar') else "N/A",
-                "creation_date": str(w.creation_date) if hasattr(w, 'creation_date') else "N/A",
-                "expiration_date": str(w.expiration_date) if hasattr(w, 'expiration_date') else "N/A",
-                "updated_date": str(w.updated_date) if hasattr(w, 'updated_date') else "N/A",
-                "name_servers": ', '.join(w.name_servers) if hasattr(w, 'name_servers') and w.name_servers else "N/A",
-                "status": ', '.join(w.status) if hasattr(w, 'status') and w.status else "N/A",
-                "emails": ', '.join(w.emails) if hasattr(w, 'emails') and w.emails else "N/A",
-                "org": w.org if hasattr(w, 'org') else "N/A",
-                "country": w.country if hasattr(w, 'country') else "N/A"
-            }
+            def _run_whois():
+                try:
+                    w = whois.whois(target)
+                    # Extract useful information
+                    whois_data = {
+                        "domain_name": w.domain_name if hasattr(w, 'domain_name') else "N/A",
+                        "registrar": w.registrar if hasattr(w, 'registrar') else "N/A",
+                        "creation_date": str(w.creation_date) if hasattr(w, 'creation_date') else "N/A",
+                        "expiration_date": str(w.expiration_date) if hasattr(w, 'expiration_date') else "N/A",
+                        "updated_date": str(w.updated_date) if hasattr(w, 'updated_date') else "N/A",
+                        "name_servers": ', '.join(w.name_servers) if hasattr(w, 'name_servers') and w.name_servers else "N/A",
+                        "status": ', '.join(w.status) if hasattr(w, 'status') and w.status else "N/A",
+                        "emails": ', '.join(w.emails) if hasattr(w, 'emails') and w.emails else "N/A",
+                        "org": w.org if hasattr(w, 'org') else "N/A",
+                        "country": w.country if hasattr(w, 'country') else "N/A"
+                    }
 
-            # Handle list values for domain_name
-            if isinstance(whois_data["domain_name"], list):
-                whois_data["domain_name"] = ', '.join(whois_data["domain_name"])
+                    # Handle list values for domain_name
+                    if isinstance(whois_data["domain_name"], list):
+                        whois_data["domain_name"] = ', '.join(whois_data["domain_name"])
+
+                    result_holder["data"] = whois_data
+                except Exception as e:
+                    error_holder["error"] = str(e)
+
+            whois_thread = threading.Thread(target=_run_whois, daemon=True)
+            whois_thread.start()
+            whois_thread.join(self.whois_timeout)
+
+            if whois_thread.is_alive():
+                print(f"{Fore.YELLOW}[!] WHOIS lookup timed out for {target} after {self.whois_timeout}s{Style.RESET_ALL}")
+                return {"error": f"WHOIS timeout after {self.whois_timeout}s"}
+
+            if "error" in error_holder:
+                print(f"{Fore.YELLOW}[!] WHOIS lookup failed for {target}: {error_holder['error']}{Style.RESET_ALL}")
+                return {"error": error_holder["error"]}
 
             print(f"{Fore.GREEN}[+] WHOIS lookup completed for {target}{Style.RESET_ALL}")
-            return whois_data
+            return result_holder.get("data", {"error": "WHOIS returned no data"})
 
         except Exception as e:
             print(f"{Fore.YELLOW}[!] WHOIS lookup failed for {target}: {e}{Style.RESET_ALL}")
@@ -1067,6 +1162,13 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
     def generate_report(self):
         """Generate comprehensive scan reports in text and CSV format"""
         print(f"\n{Fore.YELLOW}[+] Generating Reports...{Style.RESET_ALL}")
+        stop_event = threading.Event()
+        progress_thread = threading.Thread(
+            target=self._show_progress_bar,
+            args=(stop_event, "Generating reports"),
+            daemon=True
+        )
+        progress_thread.start()
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         end_time = datetime.now().isoformat()
@@ -1080,7 +1182,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         # Perform WHOIS lookups for targets
         whois_results = {}
-        if HAS_WHOIS:
+        if HAS_WHOIS and self.enable_whois:
             print(f"\n{Fore.YELLOW}[+] Performing WHOIS lookups for targets...{Style.RESET_ALL}")
             for target in self.targets:
                 # Extract domain from target (skip IP ranges)
@@ -1250,7 +1352,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             with open(json_file, 'w') as f:
                 json.dump(json_payload, f, indent=2, default=str)
 
-        print(f"{Fore.GREEN}[+] Reports saved to:{Style.RESET_ALL}")
+        stop_event.set()
+        progress_thread.join(timeout=1)
+        print(f"\r{Fore.GREEN}[+] Reports saved to:{Style.RESET_ALL}")
         if txt_file:
             print(f"  - Detailed Report: {txt_file}")
         if csv_file:
@@ -1261,6 +1365,13 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
     def generate_passive_report(self):
         """Generate simple report for passive discovery mode"""
         print(f"\n{Fore.YELLOW}[+] Generating Passive Discovery Report...{Style.RESET_ALL}")
+        stop_event = threading.Event()
+        progress_thread = threading.Thread(
+            target=self._show_progress_bar,
+            args=(stop_event, "Generating passive reports"),
+            daemon=True
+        )
+        progress_thread.start()
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         end_time = datetime.now().isoformat()
@@ -1273,7 +1384,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         # Perform WHOIS lookups for targets
         whois_results = {}
-        if HAS_WHOIS:
+        if HAS_WHOIS and self.enable_whois:
             print(f"\n{Fore.YELLOW}[+] Performing WHOIS lookups for targets...{Style.RESET_ALL}")
             for target in self.targets:
                 # Extract domain from target (skip IP ranges)
@@ -1415,7 +1526,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             with open(json_file, 'w') as f:
                 json.dump(json_payload, f, indent=2, default=str)
 
-        print(f"{Fore.GREEN}[+] Passive discovery reports saved to:{Style.RESET_ALL}")
+        stop_event.set()
+        progress_thread.join(timeout=1)
+        print(f"\r{Fore.GREEN}[+] Passive discovery reports saved to:{Style.RESET_ALL}")
         if txt_file:
             print(f"  - Host List Report: {txt_file}")
         if csv_file:
@@ -1430,6 +1543,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             return
 
         self.print_banner()
+        self.scan_state["enable_nmap"] = enable_nmap
+        self.scan_state["masscan_only"] = masscan_only
+        self._start_checkpointing()
 
         # Inform user about ping setting
         if not self.enable_ping and self.discovery_mode == "active":
@@ -1437,9 +1553,15 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         if self.discovery_mode == "passive":
             # Passive discovery mode - use passive techniques only
-            discovered_hosts = self.passive_discovery()
+            if "passive_discovery" in self.scan_state["completed_phases"]:
+                discovered_hosts = self.scan_state.get("amass_hosts", [])
+            else:
+                discovered_hosts = self.passive_discovery()
+                self.scan_state["amass_hosts"] = discovered_hosts
+                self._mark_phase_complete("passive_discovery")
             if not discovered_hosts:
                 print(f"{Fore.RED}[-] No hosts discovered through passive methods.{Style.RESET_ALL}")
+                self._stop_checkpointing()
                 return
 
             # In passive mode, only return the list of discovered hosts
@@ -1452,7 +1574,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 print(f"{host}")
 
             # Generate simple report for passive mode
-            self.generate_passive_report()
+            if "passive_report" not in self.scan_state["completed_phases"]:
+                self.generate_passive_report()
+                self._mark_phase_complete("passive_report")
 
         else:
             # Active discovery mode - amass -> host discovery -> masscan -> nmap
@@ -1460,23 +1584,32 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
             # Only run amass if neither --nmap nor --masscan flags are set
             # When these flags are set, we want ONLY port scanning (masscan/nmap)
+            amass_hosts = self.scan_state.get("amass_hosts", [])
             if not enable_nmap and not masscan_only:
                 print(f"{Fore.CYAN}[*] Phase 1: Passive subdomain discovery with amass{Style.RESET_ALL}")
                 # First, run amass to discover subdomains
-                amass_hosts = self.passive_discovery()
+                if "amass" not in self.scan_state["completed_phases"]:
+                    amass_hosts = self.passive_discovery()
+                    self.scan_state["amass_hosts"] = amass_hosts
+                    self._mark_phase_complete("amass")
             else:
                 print(f"{Fore.CYAN}[*] Phase 1: Skipping amass (running in port-scan-only mode){Style.RESET_ALL}")
                 amass_hosts = []
 
             # Then do traditional host discovery
             print(f"\n{Fore.CYAN}[*] Phase 2: Host discovery and connectivity check{Style.RESET_ALL}")
-            live_hosts = self.host_discovery()
+            live_hosts = self.scan_state.get("live_hosts", [])
+            if "host_discovery" not in self.scan_state["completed_phases"]:
+                live_hosts = self.host_discovery()
+                self.scan_state["live_hosts"] = live_hosts
+                self._mark_phase_complete("host_discovery")
 
             # Combine amass results with live host discovery
             all_discovered_hosts = set(amass_hosts + live_hosts)
 
             if not all_discovered_hosts:
                 print(f"{Fore.RED}[-] No live hosts discovered.{Style.RESET_ALL}")
+                self._stop_checkpointing()
                 return
 
             # Ensure all discovered hosts are initialized in results before proceeding
@@ -1486,26 +1619,37 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
             print(f"\n{Fore.CYAN}[*] Phase 3: Fast port scanning with masscan{Style.RESET_ALL}")
             # Use masscan for fast port discovery
-            masscan_results = self.masscan_scan(list(all_discovered_hosts))
+            if "masscan" not in self.scan_state["completed_phases"]:
+                masscan_results = self.masscan_scan(list(all_discovered_hosts))
+                self._mark_phase_complete("masscan")
+            else:
+                masscan_results = list(all_discovered_hosts)
 
             # Always perform service enumeration on discovered ports
             if enable_nmap and masscan_results:
                 # Use nmap for detailed service enumeration
                 print(f"\n{Fore.CYAN}[*] Phase 4: Detailed service enumeration with nmap{Style.RESET_ALL}")
-                self.nmap_scan(masscan_results)
+                if "nmap" not in self.scan_state["completed_phases"]:
+                    self.nmap_scan(masscan_results)
+                    self._mark_phase_complete("nmap")
             else:
                 # Use basic service enumeration on all hosts with open ports
                 print(f"\n{Fore.CYAN}[*] Phase 4: Basic service identification{Style.RESET_ALL}")
-                for host in all_discovered_hosts:
-                    if host in self.results["hosts"] and self.results["hosts"][host]["ports"]:
-                        for port in self.results["hosts"][host]["ports"]:
-                            service_info = self.enumerate_basic_service(host, port)
-                            self.results["hosts"][host]["ports"][port]["service"] = service_info
-                            print(f"{Fore.GREEN}[+] Service identified: {host}:{port} -> {service_info}{Style.RESET_ALL}")
+                if "basic_service" not in self.scan_state["completed_phases"]:
+                    for host in all_discovered_hosts:
+                        if host in self.results["hosts"] and self.results["hosts"][host]["ports"]:
+                            for port in self.results["hosts"][host]["ports"]:
+                                service_info = self.enumerate_basic_service(host, port)
+                                self.results["hosts"][host]["ports"][port]["service"] = service_info
+                                print(f"{Fore.GREEN}[+] Service identified: {host}:{port} -> {service_info}{Style.RESET_ALL}")
+                    self._mark_phase_complete("basic_service")
 
             # Generate full report for active mode
-            self.generate_report()
+            if "report" not in self.scan_state["completed_phases"]:
+                self.generate_report()
+                self._mark_phase_complete("report")
 
+        self._stop_checkpointing()
         print(f"\n{Fore.GREEN}[+] Reconnaissance scan completed!{Style.RESET_ALL}")
 
 
@@ -1543,10 +1687,13 @@ Examples:
   python pdive.py -t example.com -m passive --amass-timeout 300 (5 minute amass timeout)
   python pdive.py -t testphp.vulnweb.com -m active --nmap --ping -T 50 (throttle with 50 threads)
   python pdive.py -t example.com -m active --amass-timeout 60 (amass timeout with partial results saved)
+  python pdive.py -t example.com --no-whois (skip WHOIS in reports)
+  python pdive.py -t example.com --dns-timeout 3 --whois-timeout 10 (tune report lookup timeouts)
+  python pdive.py --resume ./scan_results/scan_checkpoint.json (resume from checkpoint)
         """
     )
 
-    target_group = parser.add_mutually_exclusive_group(required=True)
+    target_group = parser.add_mutually_exclusive_group(required=False)
     target_group.add_argument('-t', '--target',
                              help='Target IP address, hostname, CIDR range, or comma-separated list')
     target_group.add_argument('-f', '--file',
@@ -1570,6 +1717,16 @@ Examples:
                        help='Write only JSON reports (skip TXT/CSV)')
     parser.add_argument('--no-json', action='store_true',
                        help='Disable JSON report output')
+    parser.add_argument('--dns-timeout', type=int, metavar='SECONDS', default=5,
+                       help='DNS lookup timeout in seconds (default: 5)')
+    parser.add_argument('--whois-timeout', type=int, metavar='SECONDS', default=15,
+                       help='WHOIS lookup timeout in seconds (default: 15)')
+    parser.add_argument('--no-whois', action='store_true',
+                       help='Disable WHOIS lookups in reports')
+    parser.add_argument('--checkpoint-interval', type=int, metavar='SECONDS', default=30,
+                       help='Checkpoint interval in seconds (default: 30; 0 to disable)')
+    parser.add_argument('--resume', metavar='CHECKPOINT_JSON',
+                       help='Resume a prior scan from a checkpoint JSON file')
     parser.add_argument('--version', action='version', version=f'PDIve {VERSION}')
 
     args = parser.parse_args()
@@ -1600,17 +1757,41 @@ Examples:
     if args.json_only and args.no_json:
         print(f"{Fore.RED}[-] Error: --json-only and --no-json cannot be used together{Style.RESET_ALL}")
         sys.exit(1)
+    if args.dns_timeout < 1 or args.dns_timeout > 60:
+        print(f"{Fore.RED}[-] Error: DNS timeout must be between 1 and 60 seconds{Style.RESET_ALL}")
+        sys.exit(1)
+    if args.whois_timeout < 1 or args.whois_timeout > 300:
+        print(f"{Fore.RED}[-] Error: WHOIS timeout must be between 1 and 300 seconds{Style.RESET_ALL}")
+        sys.exit(1)
 
-    if args.file:
-        targets = load_targets_from_file(args.file)
-        if not targets:
-            print(f"{Fore.RED}[-] No valid targets found in file{Style.RESET_ALL}")
+    resume_data = None
+    if args.resume:
+        try:
+            with open(args.resume, 'r') as f:
+                resume_data = json.load(f)
+        except Exception as e:
+            print(f"{Fore.RED}[-] Failed to load resume file: {e}{Style.RESET_ALL}")
             sys.exit(1)
-    else:
-        if ',' in args.target:
-            targets = [t.strip() for t in args.target.split(',') if t.strip()]
+
+    if not args.resume:
+        if args.file:
+            targets = load_targets_from_file(args.file)
+            if not targets:
+                print(f"{Fore.RED}[-] No valid targets found in file{Style.RESET_ALL}")
+                sys.exit(1)
         else:
-            targets = [args.target]
+            if not args.target:
+                print(f"{Fore.RED}[-] Error: target is required unless --resume is provided{Style.RESET_ALL}")
+                sys.exit(1)
+            if ',' in args.target:
+                targets = [t.strip() for t in args.target.split(',') if t.strip()]
+            else:
+                targets = [args.target]
+    else:
+        targets = resume_data.get("config", {}).get("targets", [])
+        if not targets:
+            print(f"{Fore.RED}[-] Resume file missing targets{Style.RESET_ALL}")
+            sys.exit(1)
 
     print(f"{Fore.RED}WARNING: This tool is for authorized security testing only!{Style.RESET_ALL}")
     print(f"{Fore.RED}Ensure you have proper permission before scanning any network.{Style.RESET_ALL}\n")
@@ -1625,17 +1806,47 @@ Examples:
         print("Scan aborted.")
         sys.exit(1)
 
-    pdive = PDIve(
-        targets,
-        args.output,
-        args.threads,
-        args.mode,
-        enable_ping=args.ping,
-        amass_timeout=args.amass_timeout,
-        json_only=args.json_only,
-        no_json=args.no_json
-    )
-    pdive.run_scan(enable_nmap=args.nmap, masscan_only=args.masscan)
+    if resume_data:
+        cfg = resume_data.get("config", {})
+        pdive = PDIve(
+            targets,
+            cfg.get("output_dir", args.output),
+            cfg.get("threads", args.threads),
+            cfg.get("discovery_mode", args.mode),
+            enable_ping=cfg.get("enable_ping", args.ping),
+            amass_timeout=cfg.get("amass_timeout", args.amass_timeout),
+            json_only=cfg.get("json_only", args.json_only),
+            no_json=cfg.get("no_json", args.no_json),
+            dns_timeout=cfg.get("dns_timeout", args.dns_timeout),
+            whois_timeout=cfg.get("whois_timeout", args.whois_timeout),
+            enable_whois=cfg.get("enable_whois", (not args.no_whois)),
+            checkpoint_interval=args.checkpoint_interval,
+            checkpoint_path=args.resume
+        )
+        pdive.results = resume_data.get("results", pdive.results)
+        pdive.scan_state = resume_data.get("scan_state", pdive.scan_state)
+        print(f"{Fore.GREEN}[+] Resuming from checkpoint: {args.resume}{Style.RESET_ALL}")
+    else:
+        pdive = PDIve(
+            targets,
+            args.output,
+            args.threads,
+            args.mode,
+            enable_ping=args.ping,
+            amass_timeout=args.amass_timeout,
+            json_only=args.json_only,
+            no_json=args.no_json,
+            dns_timeout=args.dns_timeout,
+            whois_timeout=args.whois_timeout,
+            enable_whois=(not args.no_whois),
+            checkpoint_interval=args.checkpoint_interval
+        )
+    if resume_data:
+        resume_enable_nmap = resume_data.get("scan_state", {}).get("enable_nmap", args.nmap)
+        resume_masscan_only = resume_data.get("scan_state", {}).get("masscan_only", args.masscan)
+        pdive.run_scan(enable_nmap=resume_enable_nmap, masscan_only=resume_masscan_only)
+    else:
+        pdive.run_scan(enable_nmap=args.nmap, masscan_only=args.masscan)
 
 
 if __name__ == "__main__":

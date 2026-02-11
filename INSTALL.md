@@ -51,6 +51,14 @@ If a binary is missing, install it via your OS package manager or official relea
 python pdive++.py -t 127.0.0.1 --no-json
 ```
 
+## 6. Resume (Optional)
+
+If a scan is interrupted, resume from the last checkpoint:
+
+```bash
+python pdive++.py --resume ./pdive_output/scan_checkpoint.json
+```
+
 ## Troubleshooting
 
 - `requests module not available`: run `pip install -r requirements.txt`

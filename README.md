@@ -17,6 +17,7 @@ PDIve++ is a CLI tool for authorized network reconnaissance and discovery workfl
 
 ```bash
 python pdive++.py -t 127.0.0.1 --no-json
+python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 ```
 
 ## Notes
@@ -25,3 +26,10 @@ python pdive++.py -t 127.0.0.1 --no-json
 - Report format flags:
   - `--json-only`: JSON reports only
   - `--no-json`: disable JSON reports
+- Report lookup controls:
+  - `--dns-timeout <seconds>`: DNS lookup timeout (default: 5)
+  - `--whois-timeout <seconds>`: WHOIS lookup timeout (default: 15)
+  - `--no-whois`: disable WHOIS lookups in reports
+- Resumable scans:
+  - `--checkpoint-interval <seconds>`: autosave checkpoint interval (default: 30; 0 disables)
+  - `--resume <checkpoint_json>`: resume a prior scan from a checkpoint file
