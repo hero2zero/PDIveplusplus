@@ -1,0 +1,10 @@
+# Core terminal output and HTTP fingerprinting
+colorama>=0.4.6
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Optional: detailed service enumeration (--nmap)
+python-nmap>=0.7.1
+
+# Optional: WHOIS enrichment in reports
+python-whois>=0.9.0
