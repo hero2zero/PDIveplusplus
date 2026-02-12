@@ -779,6 +779,10 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         if not masscan_path:
             print(f"{Fore.RED}[-] Masscan not found in PATH, falling back to basic port scan{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}[*] Install masscan from: https://github.com/robertdavidgraham/masscan{Style.RESET_ALL}")
+            if sys.platform.startswith('win'):
+                print(f"{Fore.YELLOW}[*] On Windows, ensure masscan.exe is in PATH (run PowerShell as Administrator).{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}[*] On Linux/macOS, install via your package manager or add the binary to PATH.{Style.RESET_ALL}")
             # Fallback to the original port_scan method
             self.port_scan(hosts)
             return {host: self.results["hosts"][host]["ports"] for host in hosts if host in self.results["hosts"]}
@@ -790,28 +794,33 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         print(f"{Fore.CYAN}[*] Checking masscan privileges...{Style.RESET_ALL}")
 
-        try:
-            # Only available on Unix-like systems
-            if hasattr(os, 'geteuid'):
-                is_root = os.geteuid() == 0
-                print(f"{Fore.CYAN}[*] Running as root: {is_root} (UID: {os.getuid()}, EUID: {os.geteuid()}){Style.RESET_ALL}")
-            else:
-                # Windows or other platforms - assume not root
-                print(f"{Fore.CYAN}[*] Platform does not support privilege detection, assuming non-root{Style.RESET_ALL}")
-                is_root = False
-        except AttributeError:
-            is_root = False
-
-        # If we're already running as root, no need for sudo
-        if is_root:
-            print(f"{Fore.GREEN}[+] Running as root - no sudo needed{Style.RESET_ALL}")
+        if sys.platform.startswith('win'):
+            print(f"{Fore.CYAN}[*] Windows detected: running masscan without sudo{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[*] If masscan fails, rerun PowerShell as Administrator.{Style.RESET_ALL}")
             use_sudo = False
         else:
-            print(f"{Fore.YELLOW}[!] Not running as root - masscan will need sudo or capabilities{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[*] Please run with 'sudo python3 pdive.py' or set CAP_NET_RAW on masscan{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}[*] Falling back to basic port scan...{Style.RESET_ALL}")
-            self.port_scan(hosts)
-            return {host: self.results["hosts"][host]["ports"] for host in hosts if host in self.results["hosts"]}
+            try:
+                # Only available on Unix-like systems
+                if hasattr(os, 'geteuid'):
+                    is_root = os.geteuid() == 0
+                    print(f"{Fore.CYAN}[*] Running as root: {is_root} (UID: {os.getuid()}, EUID: {os.geteuid()}){Style.RESET_ALL}")
+                else:
+                    # Other platforms - assume not root
+                    print(f"{Fore.CYAN}[*] Platform does not support privilege detection, assuming non-root{Style.RESET_ALL}")
+                    is_root = False
+            except AttributeError:
+                is_root = False
+
+            # If we're already running as root, no need for sudo
+            if is_root:
+                print(f"{Fore.GREEN}[+] Running as root - no sudo needed{Style.RESET_ALL}")
+                use_sudo = False
+            else:
+                print(f"{Fore.YELLOW}[!] Not running as root - masscan will need sudo or capabilities{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}[*] Please run with 'sudo python3 pdive.py' or set CAP_NET_RAW on masscan{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}[*] Falling back to basic port scan...{Style.RESET_ALL}")
+                self.port_scan(hosts)
+                return {host: self.results["hosts"][host]["ports"] for host in hosts if host in self.results["hosts"]}
 
         masscan_results = {}
 
@@ -947,8 +956,21 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
     def nmap_scan(self, masscan_results):
         """Perform detailed Nmap scan on masscan results for service enumeration"""
+        import shutil
         if not HAS_NMAP:
             print(f"\n{Fore.RED}[-] Nmap module not available, skipping detailed service enumeration{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[*] Install python-nmap and ensure the nmap binary is installed.{Style.RESET_ALL}")
+            self._basic_service_from_results(masscan_results)
+            return
+
+        nmap_path = shutil.which('nmap')
+        if not nmap_path:
+            print(f"\n{Fore.RED}[-] Nmap binary not found in PATH, skipping detailed service enumeration{Style.RESET_ALL}")
+            if sys.platform.startswith('win'):
+                print(f"{Fore.YELLOW}[*] Install Nmap for Windows and ensure nmap.exe is in PATH.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}[*] Install nmap via your package manager or add it to PATH.{Style.RESET_ALL}")
+            self._basic_service_from_results(masscan_results)
             return
 
         if not masscan_results:
@@ -1024,6 +1046,28 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
             except Exception as e:
                 print(f"{Fore.RED}[-] Nmap scan failed for {host}: {e}{Style.RESET_ALL}")
+
+    def _basic_service_from_results(self, masscan_results):
+        """Fallback basic service enumeration when nmap is unavailable"""
+        if not masscan_results:
+            return
+        if isinstance(masscan_results, list):
+            # Resume path may provide only host list; derive ports from existing results
+            derived = {}
+            for host in masscan_results:
+                if host in self.results["hosts"]:
+                    derived[host] = self.results["hosts"][host].get("ports", {})
+            masscan_results = derived
+        print(f"{Fore.YELLOW}[*] Falling back to basic service identification...{Style.RESET_ALL}")
+        for host, ports in masscan_results.items():
+            if host not in self.results["hosts"]:
+                self.results["hosts"][host] = {"status": "up", "ports": {}}
+            for port in ports:
+                if str(port) not in self.results["hosts"][host]["ports"]:
+                    self.results["hosts"][host]["ports"][str(port)] = {"state": "open", "service": ""}
+                service_info = self.enumerate_basic_service(host, port)
+                self.results["hosts"][host]["ports"][str(port)]["service"] = service_info
+                print(f"{Fore.GREEN}[+] Service identified: {host}:{port} -> {service_info}{Style.RESET_ALL}")
 
     def enumerate_basic_service(self, host, port):
         """Perform basic service enumeration without nmap"""
