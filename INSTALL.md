@@ -64,4 +64,6 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 - `requests module not available`: run `pip install -r requirements.txt`
 - `nmap module not available`: install `python-nmap` and ensure `nmap` binary is installed
 - `Masscan not found in PATH`: install `masscan` or let tool fall back to built-in scanner
+- Windows (masscan): ensure `masscan.exe` is in `PATH` and run PowerShell as Administrator if raw socket scans fail
+- Windows (nmap): install Nmap for Windows and ensure `nmap.exe` is in `PATH`
 - On restricted environments, raw-socket scans may require elevated privileges or capabilities
