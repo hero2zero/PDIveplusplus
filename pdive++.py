@@ -59,7 +59,7 @@ VERSION = "1.3.6"
 
 
 class PDIve:
-    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, amass_timeout=None, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
+    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, amass_timeout=180, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
         self.targets = targets if isinstance(targets, list) else [targets]
         self.output_dir = output_dir
         self.threads = threads
@@ -1755,8 +1755,8 @@ Examples:
                        help='Skip passive discovery and use masscan for fast port scanning with basic service enumeration (Active mode only)')
     parser.add_argument('--ping', action='store_true',
                        help='Enable ICMP ping for host discovery (disabled by default for stealth)')
-    parser.add_argument('--amass-timeout', type=int, metavar='SECONDS',
-                       help='Timeout in seconds for amass scans (saves partial results on timeout)')
+    parser.add_argument('--amass-timeout', type=int, metavar='SECONDS', default=180,
+                       help='Timeout in seconds for amass scans (saves partial results on timeout, default: 180)')
     parser.add_argument('--json-only', action='store_true',
                        help='Write only JSON reports (skip TXT/CSV)')
     parser.add_argument('--no-json', action='store_true',

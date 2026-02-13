@@ -33,3 +33,5 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 - Resumable scans:
   - `--checkpoint-interval <seconds>`: autosave checkpoint interval (default: 30; 0 disables)
   - `--resume <checkpoint_json>`: resume a prior scan from a checkpoint file
+- Amass:
+  - `--amass-timeout <seconds>`: timeout for amass run (default: 180)

@@ -25,7 +25,7 @@ python pdive++.py -f <targets_file> [options]
 - `--ping`: Enable ICMP ping discovery
 - `--masscan`: Active mode only; skip passive discovery and run fast scan + basic service detection
 - `--nmap`: Active mode only; run detailed nmap service enumeration after masscan
-- `--amass-timeout <seconds>`: Timeout for amass run (1-3600)
+- `--amass-timeout <seconds>`: Timeout for amass run (1-3600, default: 180)
 - `--dns-timeout <seconds>`: DNS lookup timeout (1-60, default: 5)
 - `--whois-timeout <seconds>`: WHOIS lookup timeout (1-300, default: 15)
 - `--no-whois`: Disable WHOIS lookups in reports
