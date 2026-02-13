@@ -544,7 +544,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             else:
                 timeout_msg = "Amass scan in progress"
 
-            progress_thread = threading.Thread(target=self._show_progress_bar, args=(progress_stop, timeout_msg))
+            progress_thread = threading.Thread(target=self._show_progress, args=(progress_stop, timeout_msg))
             progress_thread.daemon = True
             progress_thread.start()
 
@@ -565,7 +565,10 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                         except subprocess.TimeoutExpired:
                             # Force kill if it doesn't terminate
                             process.kill()
-                            stdout, stderr = process.communicate()
+                            try:
+                                stdout, stderr = process.communicate(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                stdout, stderr = "", ""
 
                         returncode = -1  # Indicate timeout occurred
                         print(f"\n{Fore.YELLOW}[!] Amass timeout reached ({self.amass_timeout}s), processing partial results...{Style.RESET_ALL}")
