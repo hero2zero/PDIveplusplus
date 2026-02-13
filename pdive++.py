@@ -180,8 +180,11 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         """Display a progress indicator while a long-running task is executing"""
         spinner = ['|', '/', '-', '\\']
         idx = 0
+        start_time = time.time()
         while not stop_event.is_set():
-            print(f"\r{Fore.CYAN}[*] {message} {spinner[idx % len(spinner)]}{Style.RESET_ALL}", end='', flush=True)
+            elapsed = int(time.time() - start_time)
+            time_str = f"{elapsed}s"
+            print(f"\r{Fore.CYAN}[*] {message} {spinner[idx % len(spinner)]} ({time_str}){Style.RESET_ALL}", end='', flush=True)
             idx += 1
             time.sleep(0.2)
 
