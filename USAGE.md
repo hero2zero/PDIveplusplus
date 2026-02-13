@@ -1,6 +1,7 @@
 # PDIve++ Usage
 
 `pdive++.py` is a CLI reconnaissance tool for authorized security testing.
+Current Version: v1.4.5
 
 ## Basic Syntax
 

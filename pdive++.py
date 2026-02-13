@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PDIve - Automated Penetration Testing Discovery Tool
+PDIve++ - Automated Penetration Testing Discovery Tool
 Dive deep into the network - A defensive security tool for authorized network reconnaissance and vulnerability assessment.
 """
 
@@ -55,7 +55,7 @@ if HAS_COLORAMA:
     init(autoreset=True)
 
 # Version constant
-VERSION = "1.3.6"
+VERSION = "1.4.5"
 
 
 class PDIve:
@@ -85,7 +85,7 @@ class PDIve:
             "scan_info": {
                 "targets": self.targets,
                 "start_time": datetime.now().isoformat(),
-                "scanner": f"PDIve v{VERSION}",
+                "scanner": f"PDIve++ v{VERSION}",
                 "discovery_mode": self.discovery_mode
             },
             "hosts": {},
@@ -445,7 +445,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                     try:
                         # Suppress SSL warnings and disable SSL verification for reconnaissance
                         response = requests.get(url, timeout=5, verify=False,
-                                              headers={'User-Agent': f'PDIve/{VERSION}'})
+                                              headers={'User-Agent': f'PDIve++/{VERSION}'})
                         server_header = response.headers.get('Server', 'Unknown')
                         service_info = f"{service} ({server_header})"
                     except (requests.RequestException, ConnectionError, TimeoutError):
@@ -733,7 +733,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
             # Query crt.sh API
             url = f'https://crt.sh/?q=%.{domain}&output=json'
-            response = requests.get(url, timeout=30, headers={'User-Agent': f'PDIve/{VERSION}'})
+            response = requests.get(url, timeout=30, headers={'User-Agent': f'PDIve++/{VERSION}'})
 
             if response.status_code == 200:
                 try:
@@ -823,7 +823,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 use_sudo = False
             else:
                 print(f"{Fore.YELLOW}[!] Not running as root - masscan will need sudo or capabilities{Style.RESET_ALL}")
-                print(f"{Fore.YELLOW}[*] Please run with 'sudo python3 pdive.py' or set CAP_NET_RAW on masscan{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[*] Please run with 'sudo python3 pdive++.py' or set CAP_NET_RAW on masscan{Style.RESET_ALL}")
                 print(f"{Fore.YELLOW}[*] Falling back to basic port scan...{Style.RESET_ALL}")
                 self.port_scan(hosts)
                 return {host: self.results["hosts"][host]["ports"] for host in hosts if host in self.results["hosts"]}
@@ -1105,7 +1105,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
                 try:
                     response = requests.get(url, timeout=5, verify=False,
-                                          headers={'User-Agent': f'PDIve/{VERSION}'})
+                                          headers={'User-Agent': f'PDIve++/{VERSION}'})
                     server_header = response.headers.get('Server', 'Unknown')
                     service_info = f"{service} ({server_header})"
                 except (requests.RequestException, ConnectionError, TimeoutError):
@@ -1259,7 +1259,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         if not self.json_only:
             txt_file = os.path.join(self.output_dir, f"{dir_name}_report_{timestamp}.txt")
             with open(txt_file, 'w') as f:
-                f.write("PDIVE DETAILED SCAN REPORT\n")
+                f.write("PDIVE++ DETAILED SCAN REPORT\n")
                 f.write("=" * 60 + "\n\n")
 
                 # Summary section
@@ -1460,7 +1460,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         if not self.json_only:
             txt_file = os.path.join(self.output_dir, f"{dir_name}_passive_{timestamp}.txt")
             with open(txt_file, 'w') as f:
-                f.write("PDIVE PASSIVE DISCOVERY REPORT\n")
+                f.write("PDIVE++ PASSIVE DISCOVERY REPORT\n")
                 f.write("=" * 60 + "\n\n")
 
                 # Summary section
@@ -1723,23 +1723,23 @@ def load_targets_from_file(file_path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="PDIve - Automated Penetration Testing Discovery Tool",
+        description="PDIve++ - Automated Penetration Testing Discovery Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python pdive.py -t 192.168.1.0/24
-  python pdive.py -t 10.0.0.1 --nmap
-  python pdive.py -t 192.168.1.0/24 --masscan (fast scan with basic service enumeration)
-  python pdive.py -t 192.168.1.0/24 --ping
-  python pdive.py -f targets.txt -o /tmp/scan_results -T 100 (use 100 threads)
-  python pdive.py -t "192.168.1.1,example.com,10.0.0.0/24"
-  python pdive.py -t example.com -m passive
-  python pdive.py -t example.com -m passive --amass-timeout 300 (5 minute amass timeout)
-  python pdive.py -t testphp.vulnweb.com -m active --nmap --ping -T 50 (throttle with 50 threads)
-  python pdive.py -t example.com -m active --amass-timeout 60 (amass timeout with partial results saved)
-  python pdive.py -t example.com --no-whois (skip WHOIS in reports)
-  python pdive.py -t example.com --dns-timeout 3 --whois-timeout 10 (tune report lookup timeouts)
-  python pdive.py --resume ./scan_results/scan_checkpoint.json (resume from checkpoint)
+  python pdive++.py -t 192.168.1.0/24
+  python pdive++.py -t 10.0.0.1 --nmap
+  python pdive++.py -t 192.168.1.0/24 --masscan (fast scan with basic service enumeration)
+  python pdive++.py -t 192.168.1.0/24 --ping
+  python pdive++.py -f targets.txt -o /tmp/scan_results -T 100 (use 100 threads)
+  python pdive++.py -t "192.168.1.1,example.com,10.0.0.0/24"
+  python pdive++.py -t example.com -m passive
+  python pdive++.py -t example.com -m passive --amass-timeout 300 (5 minute amass timeout)
+  python pdive++.py -t testphp.vulnweb.com -m active --nmap --ping -T 50 (throttle with 50 threads)
+  python pdive++.py -t example.com -m active --amass-timeout 60 (amass timeout with partial results saved)
+  python pdive++.py -t example.com --no-whois (skip WHOIS in reports)
+  python pdive++.py -t example.com --dns-timeout 3 --whois-timeout 10 (tune report lookup timeouts)
+  python pdive++.py --resume ./scan_results/scan_checkpoint.json (resume from checkpoint)
         """
     )
 
@@ -1777,7 +1777,7 @@ Examples:
                        help='Checkpoint interval in seconds (default: 30; 0 to disable)')
     parser.add_argument('--resume', metavar='CHECKPOINT_JSON',
                        help='Resume a prior scan from a checkpoint JSON file')
-    parser.add_argument('--version', action='version', version=f'PDIve {VERSION}')
+    parser.add_argument('--version', action='version', version=f'PDIve++ {VERSION}')
 
     args = parser.parse_args()
 

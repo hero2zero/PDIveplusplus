@@ -1,6 +1,7 @@
 # PDIve++
 
 PDIve++ is a CLI tool for authorized network reconnaissance and discovery workflows.
+Current Version: v1.4.5
 
 ## Quick Start
 
