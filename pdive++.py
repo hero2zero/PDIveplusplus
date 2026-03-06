@@ -57,9 +57,13 @@ if HAS_COLORAMA:
 # Version constant
 VERSION = "1.5.0"
 
+# Top 1000 ports (based on nmap's default port frequency ranking)
+# This is a commonly used port list for security scanning
+TOP_1000_PORTS = "1,3-4,6-7,9,13,17,19-26,30,32-33,37,42-43,49,53,70,79-85,88-90,99-100,106,109-111,113,119,125,135,139,143-144,146,161,163,179,199,211-212,222,254-256,259,264,280,301,306,311,340,366,389,406-407,416-417,425,427,443-445,458,464-465,481,497,500,512-515,524,541,543-545,548,554-555,563,587,593,616-617,625,631,636,646,648,666-668,683,687,691,700,705,711,714,720,722,726,749,765,777,783,787,800-801,808,843,873,880,888,898,900-903,911-912,981,987,990,992-993,995,999-1002,1007,1009-1011,1021-1100,1102,1104-1108,1110-1114,1117,1119,1121-1124,1126,1130-1132,1137-1138,1141,1145,1147-1149,1151-1152,1154,1163-1166,1169,1174-1175,1183,1185-1187,1192,1198-1199,1201,1213,1216-1218,1233-1234,1236,1244,1247-1248,1259,1271-1272,1277,1287,1296,1300-1301,1309-1311,1322,1328,1334,1352,1417,1433-1434,1443,1455,1461,1494,1500-1501,1503,1521,1524,1533,1556,1580,1583,1594,1600,1641,1658,1666,1687-1688,1700,1717-1721,1723,1755,1761,1782-1783,1801,1805,1812,1839-1840,1862-1864,1875,1900,1914,1935,1947,1971-1972,1974,1984,1998-2010,2013,2020-2022,2030,2033-2035,2038,2040-2043,2045-2049,2065,2068,2099-2100,2103,2105-2107,2111,2119,2121,2126,2135,2144,2160-2161,2170,2179,2190-2191,2196,2200,2222,2251,2260,2288,2301,2323,2366,2381-2383,2393-2394,2399,2401,2492,2500,2522,2525,2557,2601-2602,2604-2605,2607-2608,2638,2701-2702,2710,2717-2718,2725,2800,2809,2811,2869,2875,2909-2910,2920,2967-2968,2998,3000-3001,3003,3005-3007,3011,3013,3017,3030-3031,3050,3052,3071,3077,3128,3168,3211,3221,3260-3261,3268-3269,3283,3300-3301,3306,3322-3325,3333,3351,3367,3369-3372,3389-3390,3404,3476,3493,3517,3527,3546,3551,3580,3659,3689-3690,3703,3737,3766,3784,3800-3801,3809,3814,3826-3828,3851,3869,3871,3878,3880,3889,3905,3914,3918,3920,3945,3971,3986,3995,3998,4000-4006,4045,4111,4125-4126,4129,4224,4242,4279,4321,4343,4443-4446,4449,4550,4567,4662,4848,4899-4900,4998,5000-5004,5009,5030,5033,5050-5051,5054,5060-5061,5080,5087,5100-5102,5120,5190,5200,5214,5221-5222,5225-5226,5269,5280,5298,5357,5405,5414,5431-5432,5440,5500,5510,5544,5550,5555,5560,5566,5631,5633,5666,5678-5679,5718,5730,5800-5802,5810-5811,5815,5822,5825,5850,5859,5862,5877,5900-5904,5906-5907,5910-5911,5915,5922,5925,5950,5952,5959-5963,5987-5989,5998-6007,6009,6025,6059,6100-6101,6106,6112,6123,6129,6156,6346,6389,6502,6510,6543,6547,6565-6567,6580,6646,6666-6669,6689,6692,6699,6779,6788-6789,6792,6839,6881,6901,6969,7000-7002,7004,7007,7019,7025,7070,7100,7103,7106,7200-7201,7402,7435,7443,7496,7512,7625,7627,7676,7741,7777-7778,7800,7911,7920-7921,7937-7938,7999-8002,8007-8011,8021-8022,8031,8042,8045,8080-8090,8093,8099-8100,8180-8181,8192-8194,8200,8222,8254,8290-8292,8300,8333,8383,8400,8402,8443,8500,8600,8649,8651-8652,8654,8701,8800,8873,8888,8899,8994,9000-9003,9009-9011,9040,9050,9071,9080-9081,9090-9091,9099-9103,9110-9111,9200,9207,9220,9290,9415,9418,9485,9500,9502-9503,9535,9575,9593-9595,9618,9666,9876-9878,9898,9900,9917,9929,9943-9944,9968,9998-10004,10009-10010,10012,10024-10025,10082,10180,10215,10243,10566,10616-10617,10621,10626,10628-10629,10778,11110-11111,11967,12000,12174,12265,12345,13456,13722,13782-13783,14000,14238,14441-14442,15000,15002-15004,15660,15742,16000-16001,16012,16016,16018,16080,16113,16992-16993,17877,17988,18040,18101,18988,19101,19283,19315,19350,19780,19801,19842,20000,20005,20031,20221-20222,20828,21571,22939,23502,24444,24800,25734-25735,26214,27000,27352-27353,27355-27356,27715,28201,30000,30718,30951,31038,31337,32768-32785,33354,33899,34571-34573,35500,38292,40193,40911,41511,42510,44176,44442-44443,44501,45100,48080,49152-49161,49163,49165,49167,49175-49176,49400,49999-50003,50006,50300,50389,50500,50636,50800,51103,51493,52673,52822,52848,52869,54045,54328,55055-55056,55555,55600,56737-56738,57294,57797,58080,60020,60443,61532,61900,62078,63331,64623,64680,65000,65129,65389"
+
 
 class PDIve:
-    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, all_ports=False, amass_timeout=180, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
+    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, all_ports=False, amass_timeout=180, masscan_timeout=300, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
         self.targets = targets if isinstance(targets, list) else [targets]
         self.output_dir = output_dir
         self.threads = threads
@@ -67,6 +71,7 @@ class PDIve:
         self.enable_ping = enable_ping
         self.all_ports = all_ports
         self.amass_timeout = amass_timeout
+        self.masscan_timeout = masscan_timeout
         self.json_only = json_only
         self.no_json = no_json
         self.dns_timeout = dns_timeout
@@ -109,6 +114,7 @@ class PDIve:
                 "enable_ping": self.enable_ping,
                 "all_ports": self.all_ports,
                 "amass_timeout": self.amass_timeout,
+                "masscan_timeout": self.masscan_timeout,
                 "json_only": self.json_only,
                 "no_json": self.no_json,
                 "dns_timeout": self.dns_timeout,
@@ -353,33 +359,24 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         """Perform port scanning on discovered hosts"""
         print(f"\n{Fore.YELLOW}[+] Starting Port Scanning...{Style.RESET_ALL}")
 
-        # Port selection - scan all ports if requested, otherwise use common ports for speed
+        # Port selection - scan all ports if requested, otherwise use top 1000 ports
         if self.all_ports:
             ports_to_scan = range(1, 65536)
             print(f"{Fore.CYAN}[*] Scanning all 65535 ports (--all-ports enabled){Style.RESET_ALL}")
             print(f"{Fore.YELLOW}[!] Warning: Scanning all ports may take a considerable amount of time{Style.RESET_ALL}")
         else:
-            ports_to_scan = [
-                # FTP, SSH, Telnet
-                21, 22, 23,
-                # SMTP, DNS
-                25, 53,
-                # HTTP/HTTPS
-                80, 443, 8080, 8443, 8000, 8888, 9000, 9090,
-                # Email
-                110, 143, 993, 995, 587,
-                # Windows
-                135, 139, 445, 3389,
-                # Remote access
-                111, 1723, 5900, 5901,
-                # Databases
-                3306, 5432, 27017, 6379, 9200, 9300, 5984,
-                # Web frameworks
-                3000, 4000, 5000, 8000, 8081, 8082,
-                # Other services
-                1433, 2049, 2181, 2375, 5601, 6443, 7001, 8161, 8500, 9092, 11211
-            ]
-            print(f"{Fore.CYAN}[*] Scanning common ports (use --all-ports to scan all 65535 ports){Style.RESET_ALL}")
+            # Convert TOP_1000_PORTS string to list of integers
+            # The string contains comma-separated ports and port ranges (e.g., "1,3-4,6-7")
+            ports_to_scan = []
+            for part in TOP_1000_PORTS.split(','):
+                if '-' in part:
+                    # Handle port range (e.g., "3-4")
+                    start, end = part.split('-')
+                    ports_to_scan.extend(range(int(start), int(end) + 1))
+                else:
+                    # Single port
+                    ports_to_scan.append(int(part))
+            print(f"{Fore.CYAN}[*] Scanning top 1000 ports (use --all-ports to scan all 65535 ports){Style.RESET_ALL}")
 
         def scan_port(host, port):
             try:
@@ -832,14 +829,14 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         masscan_results = {}
 
-        # Port range selection - scan all ports if requested, otherwise use common ports for speed
+        # Port range selection - scan all ports if requested, otherwise use top 1000 ports
         if self.all_ports:
             port_range = "1-65535"
             print(f"{Fore.CYAN}[*] Scanning all 65535 ports (--all-ports enabled){Style.RESET_ALL}")
         else:
-            # Common ports for faster scanning
-            port_range = "21,22,23,25,53,80,110,111,135,139,143,443,445,587,993,995,1433,1723,2049,2181,2375,3000,3306,3389,4000,5000,5432,5601,5900,5901,5984,6379,6443,7001,8000,8080,8081,8082,8161,8443,8500,8888,9000,9090,9092,9200,9300,11211,27017"
-            print(f"{Fore.CYAN}[*] Scanning common ports (use --all-ports to scan all 65535 ports){Style.RESET_ALL}")
+            # Top 1000 ports by default (based on nmap frequency ranking)
+            port_range = TOP_1000_PORTS
+            print(f"{Fore.CYAN}[*] Scanning top 1000 ports (use --all-ports to scan all 65535 ports){Style.RESET_ALL}")
 
         try:
             # Create a temporary target file for masscan
@@ -909,7 +906,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             progress_thread.start()
 
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.masscan_timeout)
             finally:
                 # Always stop progress indicator
                 progress_stop.set()
@@ -956,7 +953,69 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 return {host: self.results["hosts"][host]["ports"] for host in hosts if host in self.results["hosts"]}
 
         except subprocess.TimeoutExpired:
-            print(f"{Fore.RED}[-] Masscan timeout{Style.RESET_ALL}")
+            print(f"{Fore.RED}[-] Masscan timeout after {self.masscan_timeout} seconds{Style.RESET_ALL}")
+            try:
+                response = input(f"{Fore.YELLOW}Would you like to extend the timeout and retry? (y/N): {Style.RESET_ALL}")
+                if response.lower() == 'y':
+                    try:
+                        extension = input(f"{Fore.YELLOW}Enter timeout extension in seconds (e.g., 300): {Style.RESET_ALL}")
+                        extension_time = int(extension)
+                        if extension_time > 0 and extension_time <= 3600:
+                            print(f"{Fore.CYAN}[*] Extending timeout by {extension_time} seconds...{Style.RESET_ALL}")
+                            self.masscan_timeout += extension_time
+
+                            # Retry masscan with extended timeout
+                            print(f"{Fore.CYAN}[*] Retrying masscan with {self.masscan_timeout} second timeout...{Style.RESET_ALL}")
+
+                            # Restart progress indicator
+                            progress_stop = threading.Event()
+                            progress_thread = threading.Thread(target=self._show_progress_bar, args=(progress_stop, "Masscan port scan in progress"))
+                            progress_thread.daemon = True
+                            progress_thread.start()
+
+                            try:
+                                result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.masscan_timeout)
+                            finally:
+                                progress_stop.set()
+                                progress_thread.join()
+                                print()
+
+                            # Process the results (same code as before)
+                            if result.returncode == 0:
+                                for line in result.stdout.strip().split('\n'):
+                                    if line.strip() and not line.startswith('#'):
+                                        parts = line.split()
+                                        if len(parts) >= 4 and parts[0] == 'open' and parts[1] == 'tcp':
+                                            port = parts[2]
+                                            ip = parts[3]
+                                            original_host = ip_to_hostname.get(ip, ip)
+                                            if original_host not in masscan_results:
+                                                masscan_results[original_host] = {}
+                                            masscan_results[original_host][port] = {"state": "open", "service": ""}
+                                            print(f"{Fore.GREEN}[+] Masscan found: {original_host}:{port}{Style.RESET_ALL}")
+
+                                print(f"\n{Fore.CYAN}[*] Masscan completed. Found ports on {len(masscan_results)} hosts.{Style.RESET_ALL}")
+
+                                for host in hosts:
+                                    if host not in self.results["hosts"]:
+                                        self.results["hosts"][host] = {"status": "up", "ports": {}}
+                                    if host in masscan_results:
+                                        self.results["hosts"][host]["ports"].update(masscan_results[host])
+
+                                os.unlink(target_file_path)
+                                return masscan_results
+                            else:
+                                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                                print(f"{Fore.RED}[-] Masscan failed after retry (exit code {result.returncode}): {error_msg}{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.RED}[-] Invalid timeout value. Must be between 1 and 3600 seconds.{Style.RESET_ALL}")
+                    except ValueError:
+                        print(f"{Fore.RED}[-] Invalid input. Must be a number.{Style.RESET_ALL}")
+                    except subprocess.TimeoutExpired:
+                        print(f"{Fore.RED}[-] Masscan timeout again after extension{Style.RESET_ALL}")
+            except (EOFError, KeyboardInterrupt):
+                print(f"\n{Fore.YELLOW}[*] User interrupted{Style.RESET_ALL}")
+
             print(f"{Fore.YELLOW}[*] Falling back to basic port scan...{Style.RESET_ALL}")
             self.port_scan(hosts)
             return {host: self.results["hosts"][host]["ports"] for host in hosts if host in self.results["hosts"]}
@@ -1738,7 +1797,8 @@ Examples:
   python pdive++.py -t 192.168.1.0/24
   python pdive++.py -t 10.0.0.1 --nmap --all-ports (scan all 65535 ports with nmap)
   python pdive++.py -t 192.168.1.0/24 --masscan --all-ports (fast scan all ports with masscan)
-  python pdive++.py -t 192.168.1.0/24 --masscan (fast scan with basic service enumeration)
+  python pdive++.py -t 192.168.1.0/24 --masscan (fast scan with basic service enumeration, top 1000 ports)
+  python pdive++.py -t 192.168.1.0/24 --masscan --masscan-timeout 600 (10 minute masscan timeout)
   python pdive++.py -t 192.168.1.0/24 --ping
   python pdive++.py -f targets.txt -o /tmp/scan_results -T 100 (use 100 threads)
   python pdive++.py -t "192.168.1.1,example.com,10.0.0.0/24"
@@ -1775,9 +1835,11 @@ Examples:
     parser.add_argument('--ping', action='store_true',
                        help='Enable ICMP ping for host discovery (disabled by default for stealth)')
     parser.add_argument('--all-ports', action='store_true',
-                       help='Scan all ports 1-65535 (default: scan common ports only for faster results)')
+                       help='Scan all ports 1-65535 (default: scan top 1000 ports only for faster results)')
     parser.add_argument('--amass-timeout', type=int, metavar='SECONDS', default=180,
                        help='Timeout in seconds for amass scans (saves partial results on timeout, default: 180)')
+    parser.add_argument('--masscan-timeout', type=int, metavar='SECONDS', default=300,
+                       help='Timeout in seconds for masscan scans (user can extend if timeout is reached, default: 300)')
     parser.add_argument('--json-only', action='store_true',
                        help='Write only JSON reports (skip TXT/CSV)')
     parser.add_argument('--no-json', action='store_true',
@@ -1803,6 +1865,10 @@ Examples:
 
     if args.amass_timeout is not None and (args.amass_timeout < 1 or args.amass_timeout > 3600):
         print(f"{Fore.RED}[-] Error: Amass timeout must be between 1 and 3600 seconds{Style.RESET_ALL}")
+        sys.exit(1)
+
+    if args.masscan_timeout is not None and (args.masscan_timeout < 1 or args.masscan_timeout > 3600):
+        print(f"{Fore.RED}[-] Error: Masscan timeout must be between 1 and 3600 seconds{Style.RESET_ALL}")
         sys.exit(1)
 
     # Validate mode and scan option combinations
@@ -1876,6 +1942,7 @@ Examples:
             enable_ping=cfg.get("enable_ping", args.ping),
             all_ports=cfg.get("all_ports", args.all_ports),
             amass_timeout=cfg.get("amass_timeout", args.amass_timeout),
+            masscan_timeout=cfg.get("masscan_timeout", args.masscan_timeout),
             json_only=cfg.get("json_only", args.json_only),
             no_json=cfg.get("no_json", args.no_json),
             dns_timeout=cfg.get("dns_timeout", args.dns_timeout),
@@ -1896,6 +1963,7 @@ Examples:
             enable_ping=args.ping,
             all_ports=args.all_ports,
             amass_timeout=args.amass_timeout,
+            masscan_timeout=args.masscan_timeout,
             json_only=args.json_only,
             no_json=args.no_json,
             dns_timeout=args.dns_timeout,
