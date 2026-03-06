@@ -20,21 +20,68 @@ python pdive++.py -f <targets_file> [options]
 
 ## Key Options
 
+### General Options
+
 - `-o, --output <dir>`: Output directory (default: `pdive_output`)
 - `-T, --threads <n>`: Thread count (1-1000, default: 50)
 - `-m, --mode <active|passive>`: Discovery mode (default: `active`)
 - `--ping`: Enable ICMP ping discovery
-- `--masscan`: Active mode only; skip passive discovery and run fast scan + basic service detection
-- `--nmap`: Active mode only; run detailed nmap service enumeration after masscan
 - `--all-ports`: Scan all ports 1-65535 (default: scan common ports only for faster results)
+
+### Scanning Mode (Mutually Exclusive)
+
+**IMPORTANT**: `--nmap` and `--masscan` cannot be used together. Choose one:
+
+- `--masscan`: Active mode only; skip passive discovery and run fast scan + basic service detection
+  - Faster scanning with basic service identification
+  - Good for quick reconnaissance
+- `--nmap`: Active mode only; run detailed nmap service enumeration after masscan
+  - Slower but more detailed service detection
+  - Includes version detection and enhanced service identification
+
+### Report and Timeout Options
+
 - `--amass-timeout <seconds>`: Timeout for amass run (1-3600, default: 180)
 - `--dns-timeout <seconds>`: DNS lookup timeout (1-60, default: 5)
 - `--whois-timeout <seconds>`: WHOIS lookup timeout (1-300, default: 15)
 - `--no-whois`: Disable WHOIS lookups in reports
-- `--checkpoint-interval <seconds>`: Autosave checkpoint interval (default: 30; 0 disables)
-- `--resume <checkpoint_json>`: Resume a prior scan from a checkpoint JSON file
 - `--json-only`: Write JSON reports only (skip TXT/CSV)
 - `--no-json`: Disable JSON report output
+
+### Checkpoint and Resume Options
+
+- `--checkpoint-interval <seconds>`: Autosave checkpoint interval (default: 30; 0 disables)
+- `--resume <checkpoint_json>`: Resume a prior scan from a checkpoint JSON file
+
+## Scan Mode Combinations
+
+### Valid Combinations
+
+```bash
+# Default (no scanning flags)
+python pdive++.py -t 192.168.1.0/24
+
+# Masscan only (fast scan)
+python pdive++.py -t 192.168.1.0/24 --masscan
+
+# Nmap with masscan (detailed enumeration)
+python pdive++.py -t 192.168.1.0/24 --nmap
+
+# With all-ports flag
+python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
+python pdive++.py -t 192.168.1.0/24 --nmap --all-ports
+```
+
+### Invalid Combinations
+
+```bash
+# ERROR: Cannot use both --nmap and --masscan together
+python pdive++.py -t 192.168.1.0/24 --nmap --masscan
+
+# ERROR: Scanning flags not allowed in passive mode
+python pdive++.py -t example.com -m passive --nmap
+python pdive++.py -t example.com -m passive --masscan
+```
 
 ## Report Output Controls
 
@@ -59,41 +106,109 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 
 ### Active Mode
 
+Active mode performs network scanning and service enumeration. The scanning behavior depends on flags:
+
+**Default (no flags)**:
 1. Optional passive subdomain discovery (amass)
 2. Host discovery (cross-platform ping optional + port fallback)
 3. Fast port scan via masscan (fallback to built-in scanner if unavailable)
-4. Service identification (basic or `--nmap` detailed)
+4. Basic service identification
+5. Report generation
+
+**With `--masscan` flag**:
+1. Skips passive subdomain discovery
+2. Host discovery
+3. Fast port scan via masscan (common ports by default, all ports with `--all-ports`)
+4. Basic service identification
+5. Report generation
+
+**With `--nmap` flag**:
+1. Optional passive subdomain discovery (amass)
+2. Host discovery
+3. Fast port scan via masscan
+4. Detailed Nmap service enumeration (version detection, enhanced identification)
 5. Report generation
 
 ### Passive Mode
 
-1. Passive discovery (amass)
+Passive mode performs reconnaissance without active scanning:
+
+1. Passive subdomain discovery (amass)
 2. Host list display
 3. Passive reports
 
+**Note**: `--nmap` and `--masscan` flags are not allowed in passive mode.
+
 ## Example Commands
 
+### Basic Active Scans
+
 ```bash
-# Basic scans
+# Default active scan (masscan with basic service detection)
 python pdive++.py -t 192.168.1.0/24
+
+# With ICMP ping discovery
 python pdive++.py -t 10.0.0.1 --ping
+
+# Using file input
+python pdive++.py -f targets.txt -o ./scan_results
+```
+
+### Scanning Mode Examples
+
+```bash
+# Fast scan with masscan (basic service enumeration)
+python pdive++.py -t 192.168.1.0/24 --masscan
+
+# Detailed scan with nmap (enhanced service detection)
 python pdive++.py -t 10.0.0.1 --nmap
 
-# Comprehensive port scanning
+# Comprehensive port scanning (all 65535 ports)
 python pdive++.py -t 10.0.0.1 --nmap --all-ports
 python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
+```
 
-# Passive and configuration examples
+### Passive Mode Examples
+
+```bash
+# Basic passive reconnaissance
+python pdive++.py -t example.com -m passive
+
+# Passive with extended amass timeout
 python pdive++.py -t example.com -m passive --amass-timeout 300
-python pdive++.py -f targets.txt -o ./scan_results -T 100
-python pdive++.py -t testphp.vulnweb.com --json-only
-python pdive++.py -t testphp.vulnweb.com --no-json
-python pdive++.py -t example.com --no-whois
-python pdive++.py -t example.com --dns-timeout 3 --whois-timeout 10
+```
 
-# Resume and checkpoint
-python pdive++.py --resume ./scan_results/scan_checkpoint.json
+### Report Configuration
+
+```bash
+# JSON output only
+python pdive++.py -t testphp.vulnweb.com --json-only
+
+# Skip JSON output
+python pdive++.py -t testphp.vulnweb.com --no-json
+
+# Skip WHOIS lookups
+python pdive++.py -t example.com --no-whois
+
+# Custom timeouts
+python pdive++.py -t example.com --dns-timeout 3 --whois-timeout 10
+```
+
+### Performance Tuning
+
+```bash
+# Custom thread count
+python pdive++.py -f targets.txt -T 100
+
+# Custom checkpoint interval
 python pdive++.py -t example.com --checkpoint-interval 15
+```
+
+### Resume and Checkpoint
+
+```bash
+# Resume interrupted scan
+python pdive++.py --resume ./scan_results/scan_checkpoint.json
 ```
 
 ## Safety
