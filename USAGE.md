@@ -1,7 +1,7 @@
 # PDIve++ Usage
 
 `pdive++.py` is a CLI reconnaissance tool for authorized security testing.
-Current Version: v1.5.0
+Current Version: v1.6.0
 
 ## Basic Syntax
 
@@ -26,7 +26,7 @@ python pdive++.py -f <targets_file> [options]
 - `-T, --threads <n>`: Thread count (1-1000, default: 50)
 - `-m, --mode <active|passive>`: Discovery mode (default: `active`)
 - `--ping`: Enable ICMP ping discovery
-- `--all-ports`: Scan all ports 1-65535 (default: scan common ports only for faster results)
+- `--all-ports`: Scan all ports 1-65535 (default: scan top 1000 ports only for faster results)
 
 ### Scanning Mode (Mutually Exclusive)
 
@@ -42,6 +42,9 @@ python pdive++.py -f <targets_file> [options]
 ### Report and Timeout Options
 
 - `--amass-timeout <seconds>`: Timeout for amass run (1-3600, default: 180)
+- `--masscan-timeout <seconds>`: Timeout for masscan scans (1-3600, default: 300)
+  - User is prompted to extend timeout interactively if timeout is reached
+  - Falls back to basic port scan if user declines or retry fails
 - `--dns-timeout <seconds>`: DNS lookup timeout (1-60, default: 5)
 - `--whois-timeout <seconds>`: WHOIS lookup timeout (1-300, default: 15)
 - `--no-whois`: Disable WHOIS lookups in reports
@@ -118,7 +121,7 @@ Active mode performs network scanning and service enumeration. The scanning beha
 **With `--masscan` flag**:
 1. Skips passive subdomain discovery
 2. Host discovery
-3. Fast port scan via masscan (common ports by default, all ports with `--all-ports`)
+3. Fast port scan via masscan (top 1000 ports by default, all ports with `--all-ports`)
 4. Basic service identification
 5. Report generation
 
@@ -202,6 +205,12 @@ python pdive++.py -f targets.txt -T 100
 
 # Custom checkpoint interval
 python pdive++.py -t example.com --checkpoint-interval 15
+
+# Extended masscan timeout for large networks
+python pdive++.py -t 192.168.0.0/16 --masscan --masscan-timeout 600
+
+# Comprehensive scan with extended timeout
+python pdive++.py -t 10.0.0.0/8 --masscan --all-ports --masscan-timeout 1800
 ```
 
 ### Resume and Checkpoint
@@ -210,6 +219,30 @@ python pdive++.py -t example.com --checkpoint-interval 15
 # Resume interrupted scan
 python pdive++.py --resume ./scan_results/scan_checkpoint.json
 ```
+
+## Interactive Timeout Extension
+
+When masscan times out during a scan, PDIve++ will prompt you with an option to extend the timeout and retry:
+
+```
+[-] Masscan timeout after 300 seconds
+Would you like to extend the timeout and retry? (y/N): y
+Enter timeout extension in seconds (e.g., 300): 300
+[*] Extending timeout by 300 seconds...
+[*] Retrying masscan with 600 second timeout...
+```
+
+**Benefits:**
+- No need to restart entire scan from scratch
+- Flexibility to adjust timeout based on network conditions
+- Automatic retry with extended timeout
+- Falls back to basic port scan if declined or retry fails
+
+**Usage Tips:**
+- Start with default timeout (300s) for most networks
+- Extend timeout for large networks or slow connections
+- Use `--masscan-timeout` to set a higher initial timeout for known large scans
+- Maximum extension value: 3600 seconds (1 hour)
 
 ## Safety
 

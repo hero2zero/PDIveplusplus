@@ -5,6 +5,37 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-06
+
+### Added
+- **Interactive Masscan Timeout Extension**: When masscan times out, users are now prompted to extend the timeout and retry
+  - User-friendly prompt asking if they want to extend the timeout
+  - Input field for specifying extension duration (1-3600 seconds)
+  - Automatic retry with extended timeout if user chooses to continue
+  - Falls back to basic port scan if user declines or retry fails
+- **New `--masscan-timeout` flag**: Configure masscan timeout duration (default: 300 seconds)
+  - Allows values between 1-3600 seconds
+  - Timeout can be extended interactively during scan if timeout occurs
+  - Setting is preserved in checkpoint/resume functionality
+
+### Changed
+- **Default port scanning upgraded from ~50 common ports to top 1000 ports**
+  - Masscan now scans top 1000 ports by default (based on nmap frequency ranking)
+  - Basic port scanner fallback also uses top 1000 ports by default
+  - Significantly improved coverage while maintaining reasonable scan times
+  - Better detection of less common but important services
+- Console messages updated to reflect "top 1000 ports" instead of "common ports"
+- Help text and examples updated to clarify new default behavior
+
+### Technical Details
+- Added `TOP_1000_PORTS` constant with nmap's default port frequency list
+- Added `masscan_timeout` parameter to `PDIve.__init__()` method
+- Modified `masscan_scan()` to use configurable timeout instead of hardcoded 300 seconds
+- Implemented interactive timeout extension with subprocess retry logic
+- Updated `port_scan()` method to parse and use TOP_1000_PORTS for fallback scanning
+- Checkpoint save/restore now includes `masscan_timeout` configuration
+- Added validation for `--masscan-timeout` argument (1-3600 seconds range)
+
 ## [1.5.0] - 2026-03-06
 
 ### Added
@@ -60,5 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.6.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.4.5...v1.5.0
 [1.4.5]: https://github.com/yourusername/PDIveplusplus/releases/tag/v1.4.5
