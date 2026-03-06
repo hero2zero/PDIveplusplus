@@ -1,7 +1,7 @@
 # PDIve++ Usage
 
 `pdive++.py` is a CLI reconnaissance tool for authorized security testing.
-Current Version: v1.4.5
+Current Version: v1.5.0
 
 ## Basic Syntax
 
@@ -26,6 +26,7 @@ python pdive++.py -f <targets_file> [options]
 - `--ping`: Enable ICMP ping discovery
 - `--masscan`: Active mode only; skip passive discovery and run fast scan + basic service detection
 - `--nmap`: Active mode only; run detailed nmap service enumeration after masscan
+- `--all-ports`: Scan all ports 1-65535 (default: scan common ports only for faster results)
 - `--amass-timeout <seconds>`: Timeout for amass run (1-3600, default: 180)
 - `--dns-timeout <seconds>`: DNS lookup timeout (1-60, default: 5)
 - `--whois-timeout <seconds>`: WHOIS lookup timeout (1-300, default: 15)
@@ -73,15 +74,24 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 ## Example Commands
 
 ```bash
+# Basic scans
 python pdive++.py -t 192.168.1.0/24
 python pdive++.py -t 10.0.0.1 --ping
 python pdive++.py -t 10.0.0.1 --nmap
+
+# Comprehensive port scanning
+python pdive++.py -t 10.0.0.1 --nmap --all-ports
+python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
+
+# Passive and configuration examples
 python pdive++.py -t example.com -m passive --amass-timeout 300
 python pdive++.py -f targets.txt -o ./scan_results -T 100
 python pdive++.py -t testphp.vulnweb.com --json-only
 python pdive++.py -t testphp.vulnweb.com --no-json
 python pdive++.py -t example.com --no-whois
 python pdive++.py -t example.com --dns-timeout 3 --whois-timeout 10
+
+# Resume and checkpoint
 python pdive++.py --resume ./scan_results/scan_checkpoint.json
 python pdive++.py -t example.com --checkpoint-interval 15
 ```

@@ -55,16 +55,17 @@ if HAS_COLORAMA:
     init(autoreset=True)
 
 # Version constant
-VERSION = "1.4.5"
+VERSION = "1.5.0"
 
 
 class PDIve:
-    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, amass_timeout=180, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
+    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, all_ports=False, amass_timeout=180, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
         self.targets = targets if isinstance(targets, list) else [targets]
         self.output_dir = output_dir
         self.threads = threads
         self.discovery_mode = discovery_mode
         self.enable_ping = enable_ping
+        self.all_ports = all_ports
         self.amass_timeout = amass_timeout
         self.json_only = json_only
         self.no_json = no_json
@@ -106,6 +107,7 @@ class PDIve:
                 "threads": self.threads,
                 "discovery_mode": self.discovery_mode,
                 "enable_ping": self.enable_ping,
+                "all_ports": self.all_ports,
                 "amass_timeout": self.amass_timeout,
                 "json_only": self.json_only,
                 "no_json": self.no_json,
@@ -351,26 +353,33 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         """Perform port scanning on discovered hosts"""
         print(f"\n{Fore.YELLOW}[+] Starting Port Scanning...{Style.RESET_ALL}")
 
-        common_ports = [
-            # FTP, SSH, Telnet
-            21, 22, 23,
-            # SMTP, DNS
-            25, 53,
-            # HTTP/HTTPS
-            80, 443, 8080, 8443, 8000, 8888, 9000, 9090,
-            # Email
-            110, 143, 993, 995, 587,
-            # Windows
-            135, 139, 445, 3389,
-            # Remote access
-            111, 1723, 5900, 5901,
-            # Databases
-            3306, 5432, 27017, 6379, 9200, 9300, 5984,
-            # Web frameworks
-            3000, 4000, 5000, 8000, 8081, 8082,
-            # Other services
-            1433, 2049, 2181, 2375, 5601, 6443, 7001, 8161, 8500, 9092, 11211
-        ]
+        # Port selection - scan all ports if requested, otherwise use common ports for speed
+        if self.all_ports:
+            ports_to_scan = range(1, 65536)
+            print(f"{Fore.CYAN}[*] Scanning all 65535 ports (--all-ports enabled){Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[!] Warning: Scanning all ports may take a considerable amount of time{Style.RESET_ALL}")
+        else:
+            ports_to_scan = [
+                # FTP, SSH, Telnet
+                21, 22, 23,
+                # SMTP, DNS
+                25, 53,
+                # HTTP/HTTPS
+                80, 443, 8080, 8443, 8000, 8888, 9000, 9090,
+                # Email
+                110, 143, 993, 995, 587,
+                # Windows
+                135, 139, 445, 3389,
+                # Remote access
+                111, 1723, 5900, 5901,
+                # Databases
+                3306, 5432, 27017, 6379, 9200, 9300, 5984,
+                # Web frameworks
+                3000, 4000, 5000, 8000, 8081, 8082,
+                # Other services
+                1433, 2049, 2181, 2375, 5601, 6443, 7001, 8161, 8500, 9092, 11211
+            ]
+            print(f"{Fore.CYAN}[*] Scanning common ports (use --all-ports to scan all 65535 ports){Style.RESET_ALL}")
 
         def scan_port(host, port):
             try:
@@ -394,7 +403,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 self.results["hosts"][host] = {"status": "up", "ports": {}}
 
             with ThreadPoolExecutor(max_workers=self.threads) as executor:
-                futures = [executor.submit(scan_port, host, port) for port in common_ports]
+                futures = [executor.submit(scan_port, host, port) for port in ports_to_scan]
 
                 for future in as_completed(futures):
                     result = future.result()
@@ -823,8 +832,14 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         masscan_results = {}
 
-        # Common ports to scan quickly
-        port_range = "1-65535"
+        # Port range selection - scan all ports if requested, otherwise use common ports for speed
+        if self.all_ports:
+            port_range = "1-65535"
+            print(f"{Fore.CYAN}[*] Scanning all 65535 ports (--all-ports enabled){Style.RESET_ALL}")
+        else:
+            # Common ports for faster scanning
+            port_range = "21,22,23,25,53,80,110,111,135,139,143,443,445,587,993,995,1433,1723,2049,2181,2375,3000,3306,3389,4000,5000,5432,5601,5900,5901,5984,6379,6443,7001,8000,8080,8081,8082,8161,8443,8500,8888,9000,9090,9092,9200,9300,11211,27017"
+            print(f"{Fore.CYAN}[*] Scanning common ports (use --all-ports to scan all 65535 ports){Style.RESET_ALL}")
 
         try:
             # Create a temporary target file for masscan
@@ -1721,7 +1736,8 @@ def main():
         epilog="""
 Examples:
   python pdive++.py -t 192.168.1.0/24
-  python pdive++.py -t 10.0.0.1 --nmap
+  python pdive++.py -t 10.0.0.1 --nmap --all-ports (scan all 65535 ports with nmap)
+  python pdive++.py -t 192.168.1.0/24 --masscan --all-ports (fast scan all ports with masscan)
   python pdive++.py -t 192.168.1.0/24 --masscan (fast scan with basic service enumeration)
   python pdive++.py -t 192.168.1.0/24 --ping
   python pdive++.py -f targets.txt -o /tmp/scan_results -T 100 (use 100 threads)
@@ -1754,6 +1770,8 @@ Examples:
                        help='Skip passive discovery and use masscan for fast port scanning with basic service enumeration (Active mode only)')
     parser.add_argument('--ping', action='store_true',
                        help='Enable ICMP ping for host discovery (disabled by default for stealth)')
+    parser.add_argument('--all-ports', action='store_true',
+                       help='Scan all ports 1-65535 (default: scan common ports only for faster results)')
     parser.add_argument('--amass-timeout', type=int, metavar='SECONDS', default=180,
                        help='Timeout in seconds for amass scans (saves partial results on timeout, default: 180)')
     parser.add_argument('--json-only', action='store_true',
@@ -1857,6 +1875,7 @@ Examples:
             cfg.get("threads", args.threads),
             cfg.get("discovery_mode", args.mode),
             enable_ping=cfg.get("enable_ping", args.ping),
+            all_ports=cfg.get("all_ports", args.all_ports),
             amass_timeout=cfg.get("amass_timeout", args.amass_timeout),
             json_only=cfg.get("json_only", args.json_only),
             no_json=cfg.get("no_json", args.no_json),
@@ -1876,6 +1895,7 @@ Examples:
             args.threads,
             args.mode,
             enable_ping=args.ping,
+            all_ports=args.all_ports,
             amass_timeout=args.amass_timeout,
             json_only=args.json_only,
             no_json=args.no_json,
