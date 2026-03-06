@@ -1764,10 +1764,14 @@ Examples:
                        help='Number of threads for scan throttling (default: 50)')
     parser.add_argument('-m', '--mode', choices=['active', 'passive'], default='active',
                        help='Discovery mode: active (default) or passive')
-    parser.add_argument('--nmap', action='store_true',
+
+    # Scanning mode: --nmap and --masscan are mutually exclusive
+    scan_group = parser.add_mutually_exclusive_group(required=False)
+    scan_group.add_argument('--nmap', action='store_true',
                        help='Enable detailed Nmap scanning after masscan (Active mode only)')
-    parser.add_argument('--masscan', action='store_true',
+    scan_group.add_argument('--masscan', action='store_true',
                        help='Skip passive discovery and use masscan for fast port scanning with basic service enumeration (Active mode only)')
+
     parser.add_argument('--ping', action='store_true',
                        help='Enable ICMP ping for host discovery (disabled by default for stealth)')
     parser.add_argument('--all-ports', action='store_true',
@@ -1808,11 +1812,6 @@ Examples:
 
     if args.mode == 'passive' and args.masscan:
         print(f"{Fore.RED}[-] Error: --masscan flag is not compatible with passive mode{Style.RESET_ALL}")
-        sys.exit(1)
-
-    if args.nmap and args.masscan:
-        print(f"{Fore.RED}[-] Error: --nmap and --masscan flags cannot be used together{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}[*] Use --masscan for fast scanning with basic service enumeration, or --nmap for masscan followed by detailed nmap service enumeration{Style.RESET_ALL}")
         sys.exit(1)
 
     if args.json_only and args.no_json:
