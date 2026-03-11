@@ -19,6 +19,7 @@ Current Version: v1.7.0
 ```bash
 python pdive++.py -t 127.0.0.1 --no-json
 python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
+python pdive++.py -t 192.168.0.0/16 --masscan --masscan-timeout 600
 python pdive++.py -t example.com --amass
 python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 ```
@@ -43,5 +44,7 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 - Resumable scans:
   - `--checkpoint-interval <seconds>`: autosave checkpoint interval (default: 30; 0 disables)
   - `--resume <checkpoint_json>`: resume a prior scan from a checkpoint file
-- Amass:
+- Timeout controls:
   - `--amass-timeout <seconds>`: timeout for amass run (default: 180)
+  - `--masscan-timeout <seconds>`: timeout for masscan scans (default: 300)
+    - User is prompted to extend timeout interactively if timeout is reached
