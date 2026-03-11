@@ -500,6 +500,42 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             # It's likely a domain name
             return target.lower().strip()
 
+    def _is_valid_hostname(self, hostname):
+        """Validate if a string is a valid hostname/domain (not an ASN, CIDR, or invalid entry)"""
+        import re
+
+        # Filter out empty strings
+        if not hostname or not hostname.strip():
+            return False
+
+        hostname = hostname.strip()
+
+        # Filter out ASN numbers (all digits, possibly with leading AS)
+        if hostname.isdigit():
+            return False
+        if hostname.startswith('AS') and hostname[2:].isdigit():
+            return False
+
+        # Filter out CIDR ranges (contains /)
+        if '/' in hostname:
+            return False
+
+        # Filter out pure IP addresses
+        try:
+            ipaddress.ip_address(hostname)
+            return False  # It's an IP address, not a hostname
+        except ValueError:
+            pass  # Not an IP, continue validation
+
+        # Validate hostname format (basic DNS name validation)
+        # Valid hostname: contains letters, may have dots, hyphens, numbers
+        # Must have at least one letter and one dot (to be a FQDN)
+        hostname_pattern = r'^(?=.*[a-zA-Z])(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
+        if re.match(hostname_pattern, hostname):
+            return True
+
+        return False
+
     def amass_discovery(self, domain):
         """Use amass for passive subdomain enumeration"""
         discovered_hosts = set()
@@ -589,6 +625,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             # Process output regardless of timeout
             if stdout and stdout.strip():
                 output_lines = stdout.strip().split('\n')
+                filtered_count = 0
                 if output_lines and any(line.strip() for line in output_lines):
                     for line in output_lines:
                         if line.strip():
@@ -596,11 +633,20 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                             # Amass may output formats like: "hostname (FQDN) --> record_type --> ip (IPAddress)"
                             # We only want the hostname part
                             hostname = line.strip().split()[0]
-                            discovered_hosts.add(hostname)
-                            print(f"{Fore.GREEN}[+] Amass discovered: {hostname}{Style.RESET_ALL}")
+
+                            # Validate that this is actually a valid hostname/domain
+                            if self._is_valid_hostname(hostname):
+                                discovered_hosts.add(hostname)
+                                print(f"{Fore.GREEN}[+] Amass discovered: {hostname}{Style.RESET_ALL}")
+                            else:
+                                # Skip invalid entries (ASN, CIDR, IPs, etc.)
+                                filtered_count += 1
+
+                    if filtered_count > 0:
+                        print(f"{Fore.CYAN}[*] Filtered out {filtered_count} invalid entries (ASN, CIDR, IPs){Style.RESET_ALL}")
 
                     if returncode == -1:
-                        print(f"{Fore.GREEN}[+] Saved {len(discovered_hosts)} hosts discovered before timeout{Style.RESET_ALL}")
+                        print(f"{Fore.GREEN}[+] Saved {len(discovered_hosts)} valid hosts discovered before timeout{Style.RESET_ALL}")
                 else:
                     if returncode != -1:
                         print(f"{Fore.YELLOW}[*] Amass completed but found no subdomains for {domain}{Style.RESET_ALL}")
