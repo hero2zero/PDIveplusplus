@@ -24,11 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated all documentation (README.md, USAGE.md) to reflect new scanning mode
 - Console output now shows "Amass-Only Mode" when `--amass` flag is used
 
+### Fixed
+- **Amass output parsing now filters invalid entries**: Fixed issue where ASN numbers, CIDR ranges, and IP addresses were being incorrectly added to discovered hosts
+  - Added `_is_valid_hostname()` validation method to filter amass output
+  - Now properly validates hostnames before adding to results
+  - Filters out ASN numbers (e.g., "11377", "15169")
+  - Filters out CIDR ranges (e.g., "142.250.160.0/19", "2a01:111:4000::/36")
+  - Filters out standalone IP addresses
+  - Invalid entries no longer appear in CSV, TXT, or JSON output files
+  - Console output shows count of filtered entries for transparency
+
 ### Technical Details
 - Modified argument parser to include `--amass` in mutually exclusive `scan_group`
 - Added `elif amass_only:` branch in `run_scan()` method for amass-only execution flow
 - Updated resume data handling to include `amass_only` state
 - Added example: `python pdive++.py -t example.com --amass`
+- Added `_is_valid_hostname()` method with regex validation for hostname format
+- Modified `amass_discovery()` to validate each parsed entry before adding to discovered_hosts
+- Added filtered entry counter to track and report skipped invalid entries
 
 ## [1.6.0] - 2026-03-06
 
