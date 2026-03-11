@@ -5,6 +5,31 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-11
+
+### Added
+- **New `--amass` scanning mode flag**: Run only amass subdomain discovery
+  - Mutually exclusive with `--nmap` and `--masscan` flags
+  - Active mode only (not compatible with passive mode)
+  - Performs only passive subdomain enumeration without any port scanning
+  - Displays discovered hosts and generates simple report
+  - Fastest option for domain reconnaissance when only subdomain discovery is needed
+- Added `amass_only` parameter to `run_scan()` method
+- Added validation to prevent `--amass` flag use in passive mode
+- Updated checkpoint/resume functionality to preserve `amass_only` setting
+
+### Changed
+- **Scanning mode options now three-way mutually exclusive**: `--nmap`, `--masscan`, and `--amass`
+- Updated help text and examples to include `--amass` option
+- Updated all documentation (README.md, USAGE.md) to reflect new scanning mode
+- Console output now shows "Amass-Only Mode" when `--amass` flag is used
+
+### Technical Details
+- Modified argument parser to include `--amass` in mutually exclusive `scan_group`
+- Added `elif amass_only:` branch in `run_scan()` method for amass-only execution flow
+- Updated resume data handling to include `amass_only` state
+- Added example: `python pdive++.py -t example.com --amass`
+
 ## [1.6.0] - 2026-03-06
 
 ### Added
@@ -91,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.7.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.4.5...v1.5.0
 [1.4.5]: https://github.com/yourusername/PDIveplusplus/releases/tag/v1.4.5

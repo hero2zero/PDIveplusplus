@@ -1,7 +1,7 @@
 # PDIve++ Usage
 
 `pdive++.py` is a CLI reconnaissance tool for authorized security testing.
-Current Version: v1.6.0
+Current Version: v1.7.0
 
 ## Basic Syntax
 
@@ -30,7 +30,7 @@ python pdive++.py -f <targets_file> [options]
 
 ### Scanning Mode (Mutually Exclusive)
 
-**IMPORTANT**: `--nmap` and `--masscan` cannot be used together. Choose one:
+**IMPORTANT**: `--nmap`, `--masscan`, and `--amass` cannot be used together. Choose one:
 
 - `--masscan`: Active mode only; skip passive discovery and run fast scan + basic service detection
   - Faster scanning with basic service identification
@@ -38,6 +38,10 @@ python pdive++.py -f <targets_file> [options]
 - `--nmap`: Active mode only; run detailed nmap service enumeration after masscan
   - Slower but more detailed service detection
   - Includes version detection and enhanced service identification
+- `--amass`: Active mode only; run only amass subdomain discovery
+  - Performs only passive subdomain enumeration
+  - No port scanning or service detection
+  - Fastest option for domain reconnaissance
 
 ### Report and Timeout Options
 
@@ -70,6 +74,9 @@ python pdive++.py -t 192.168.1.0/24 --masscan
 # Nmap with masscan (detailed enumeration)
 python pdive++.py -t 192.168.1.0/24 --nmap
 
+# Amass only (subdomain discovery)
+python pdive++.py -t example.com --amass
+
 # With all-ports flag
 python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
 python pdive++.py -t 192.168.1.0/24 --nmap --all-ports
@@ -78,12 +85,15 @@ python pdive++.py -t 192.168.1.0/24 --nmap --all-ports
 ### Invalid Combinations
 
 ```bash
-# ERROR: Cannot use both --nmap and --masscan together
+# ERROR: Cannot use multiple scanning flags together
 python pdive++.py -t 192.168.1.0/24 --nmap --masscan
+python pdive++.py -t example.com --nmap --amass
+python pdive++.py -t example.com --masscan --amass
 
 # ERROR: Scanning flags not allowed in passive mode
 python pdive++.py -t example.com -m passive --nmap
 python pdive++.py -t example.com -m passive --masscan
+python pdive++.py -t example.com -m passive --amass
 ```
 
 ## Report Output Controls
@@ -126,11 +136,17 @@ Active mode performs network scanning and service enumeration. The scanning beha
 5. Report generation
 
 **With `--nmap` flag**:
-1. Optional passive subdomain discovery (amass)
+1. Skips passive subdomain discovery
 2. Host discovery
 3. Fast port scan via masscan
 4. Detailed Nmap service enumeration (version detection, enhanced identification)
 5. Report generation
+
+**With `--amass` flag**:
+1. Amass subdomain discovery only
+2. Host list display
+3. Simple report generation
+4. No port scanning or service detection
 
 ### Passive Mode
 
@@ -140,7 +156,7 @@ Passive mode performs reconnaissance without active scanning:
 2. Host list display
 3. Passive reports
 
-**Note**: `--nmap` and `--masscan` flags are not allowed in passive mode.
+**Note**: `--nmap`, `--masscan`, and `--amass` flags are not allowed in passive mode (passive mode already performs amass scanning by default).
 
 ## Example Commands
 
@@ -165,6 +181,12 @@ python pdive++.py -t 192.168.1.0/24 --masscan
 
 # Detailed scan with nmap (enhanced service detection)
 python pdive++.py -t 10.0.0.1 --nmap
+
+# Amass subdomain discovery only
+python pdive++.py -t example.com --amass
+
+# Amass with custom timeout
+python pdive++.py -t example.com --amass --amass-timeout 300
 
 # Comprehensive port scanning (all 65535 ports)
 python pdive++.py -t 10.0.0.1 --nmap --all-ports

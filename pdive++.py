@@ -55,7 +55,7 @@ if HAS_COLORAMA:
     init(autoreset=True)
 
 # Version constant
-VERSION = "1.5.0"
+VERSION = "1.7.0"
 
 # Top 1000 ports (based on nmap's default port frequency ranking)
 # This is a commonly used port list for security scanning
@@ -1653,7 +1653,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         if json_file:
             print(f"  - JSON Host List: {json_file}")
 
-    def run_scan(self, enable_nmap=False, masscan_only=False):
+    def run_scan(self, enable_nmap=False, masscan_only=False, amass_only=False):
         """Execute complete reconnaissance scan"""
         if not self.validate_targets():
             print(f"{Fore.RED}[-] No valid targets found{Style.RESET_ALL}")
@@ -1662,6 +1662,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         self.print_banner()
         self.scan_state["enable_nmap"] = enable_nmap
         self.scan_state["masscan_only"] = masscan_only
+        self.scan_state["amass_only"] = amass_only
         self._start_checkpointing()
 
         # Inform user about ping setting
@@ -1694,6 +1695,37 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
             if "passive_report" not in self.scan_state["completed_phases"]:
                 self.generate_passive_report()
                 self._mark_phase_complete("passive_report")
+
+        elif amass_only:
+            # Amass-only mode - run only amass subdomain discovery
+            print(f"\n{Fore.YELLOW}[+] Starting Amass-Only Mode{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}[*] Running amass subdomain discovery...{Style.RESET_ALL}")
+
+            if "amass" in self.scan_state["completed_phases"]:
+                discovered_hosts = self.scan_state.get("amass_hosts", [])
+            else:
+                discovered_hosts = self.passive_discovery()
+                self.scan_state["amass_hosts"] = discovered_hosts
+                self._mark_phase_complete("amass")
+
+            if not discovered_hosts:
+                print(f"{Fore.RED}[-] No hosts discovered through amass.{Style.RESET_ALL}")
+                self._stop_checkpointing()
+                return
+
+            # Display amass results
+            print(f"\n{Fore.YELLOW}[+] AMASS DISCOVERY RESULTS{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}{'='*50}{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}Total hosts discovered: {len(discovered_hosts)}{Style.RESET_ALL}\n")
+
+            print(f"{Fore.GREEN}Discovered hosts:{Style.RESET_ALL}")
+            for host in sorted(discovered_hosts):
+                print(f"{host}")
+
+            # Generate simple report for amass-only mode
+            if "amass_report" not in self.scan_state["completed_phases"]:
+                self.generate_passive_report()
+                self._mark_phase_complete("amass_report")
 
         else:
             # Active discovery mode - amass -> host discovery -> masscan -> nmap
@@ -1799,6 +1831,7 @@ Examples:
   python pdive++.py -t 192.168.1.0/24 --masscan --all-ports (fast scan all ports with masscan)
   python pdive++.py -t 192.168.1.0/24 --masscan (fast scan with basic service enumeration, top 1000 ports)
   python pdive++.py -t 192.168.1.0/24 --masscan --masscan-timeout 600 (10 minute masscan timeout)
+  python pdive++.py -t example.com --amass (run only amass subdomain discovery)
   python pdive++.py -t 192.168.1.0/24 --ping
   python pdive++.py -f targets.txt -o /tmp/scan_results -T 100 (use 100 threads)
   python pdive++.py -t "192.168.1.1,example.com,10.0.0.0/24"
@@ -1825,12 +1858,14 @@ Examples:
     parser.add_argument('-m', '--mode', choices=['active', 'passive'], default='active',
                        help='Discovery mode: active (default) or passive')
 
-    # Scanning mode: --nmap and --masscan are mutually exclusive
+    # Scanning mode: --nmap, --masscan, and --amass are mutually exclusive
     scan_group = parser.add_mutually_exclusive_group(required=False)
     scan_group.add_argument('--nmap', action='store_true',
                        help='Enable detailed Nmap scanning after masscan (Active mode only)')
     scan_group.add_argument('--masscan', action='store_true',
                        help='Skip passive discovery and use masscan for fast port scanning with basic service enumeration (Active mode only)')
+    scan_group.add_argument('--amass', action='store_true',
+                       help='Run only amass subdomain discovery (Active mode only)')
 
     parser.add_argument('--ping', action='store_true',
                        help='Enable ICMP ping for host discovery (disabled by default for stealth)')
@@ -1878,6 +1913,10 @@ Examples:
 
     if args.mode == 'passive' and args.masscan:
         print(f"{Fore.RED}[-] Error: --masscan flag is not compatible with passive mode{Style.RESET_ALL}")
+        sys.exit(1)
+
+    if args.mode == 'passive' and args.amass:
+        print(f"{Fore.RED}[-] Error: --amass flag is not compatible with passive mode{Style.RESET_ALL}")
         sys.exit(1)
 
     if args.json_only and args.no_json:
@@ -1974,9 +2013,10 @@ Examples:
     if resume_data:
         resume_enable_nmap = resume_data.get("scan_state", {}).get("enable_nmap", args.nmap)
         resume_masscan_only = resume_data.get("scan_state", {}).get("masscan_only", args.masscan)
-        pdive.run_scan(enable_nmap=resume_enable_nmap, masscan_only=resume_masscan_only)
+        resume_amass_only = resume_data.get("scan_state", {}).get("amass_only", args.amass)
+        pdive.run_scan(enable_nmap=resume_enable_nmap, masscan_only=resume_masscan_only, amass_only=resume_amass_only)
     else:
-        pdive.run_scan(enable_nmap=args.nmap, masscan_only=args.masscan)
+        pdive.run_scan(enable_nmap=args.nmap, masscan_only=args.masscan, amass_only=args.amass)
 
 
 if __name__ == "__main__":
