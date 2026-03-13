@@ -5,6 +5,15 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-03-13
+
+### Changed
+- **Refactored Metadata Gathering Lifecycle**: Moved DNS, reverse DNS, and WHOIS lookups earlier in the scan process to improve efficiency and reduce report generation time.
+  - Added `perform_initial_lookups()` to gather WHOIS data for targets at the start of the scan.
+  - Updated `host_discovery()` and `passive_discovery()` to perform DNS/rDNS lookups as hosts are identified.
+  - Metadata is now stored directly in `self.results` and preserved across checkpoints.
+  - `generate_report()` and `generate_passive_report()` now pull from pre-cached values instead of performing redundant lookups.
+
 ## [1.7.0] - 2026-03-11
 
 ### Added
@@ -129,6 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.7.1]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.4.5...v1.5.0

@@ -55,7 +55,7 @@ if HAS_COLORAMA:
     init(autoreset=True)
 
 # Version constant
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 
 # Top 1000 ports (based on nmap's default port frequency ranking)
 # This is a commonly used port list for security scanning
@@ -97,6 +97,7 @@ class PDIve:
             "hosts": {},
             "services": {},
             "summary": {},
+            "whois": {},
             "unresponsive_hosts": 0
         }
 
@@ -339,6 +340,7 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         live_hosts_list = list(live_hosts)
         unresponsive_count = len(all_hosts) - len(live_hosts_list)
 
+        print(f"\n{Fore.YELLOW}[+] Performing Metadata Lookups (DNS/rDNS) for {len(live_hosts_list)} live hosts...{Style.RESET_ALL}")
         for host in live_hosts_list:
             if host not in self.results["hosts"]:
                 self.results["hosts"][host] = {"status": "up", "ports": {}}
@@ -346,6 +348,15 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 self.results["hosts"][host]["status"] = "up"
                 if "ports" not in self.results["hosts"][host]:
                     self.results["hosts"][host]["ports"] = {}
+
+            # Pre-cache DNS and rDNS info
+            ip_address = self.resolve_domain_to_ip(host)
+            self.results["hosts"][host]["ip_address"] = ip_address
+            if ip_address != "N/A":
+                self.results["hosts"][host]["reverse_dns"] = self.reverse_dns_lookup(ip_address)
+            else:
+                self.results["hosts"][host]["reverse_dns"] = "N/A"
+
         self.results["unresponsive_hosts"] = unresponsive_count
         print(f"\n{Fore.CYAN}[*] Host discovery completed. Found {len(live_hosts_list)} live hosts from {len(all_hosts)} total hosts.{Style.RESET_ALL}")
         if self.enable_ping:
@@ -483,8 +494,16 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         discovered_hosts_list = list(discovered_hosts)
 
-        # Add discovered hosts to results
-        self.results["hosts"] = {host: {"status": "discovered", "ports": {}} for host in discovered_hosts_list}
+        # Add discovered hosts to results with metadata
+        print(f"\n{Fore.YELLOW}[+] Performing Metadata Lookups (DNS/rDNS) for {len(discovered_hosts_list)} discovered hosts...{Style.RESET_ALL}")
+        for host in discovered_hosts_list:
+            ip_address = self.resolve_domain_to_ip(host)
+            self.results["hosts"][host] = {
+                "status": "discovered",
+                "ports": {},
+                "ip_address": ip_address,
+                "reverse_dns": self.reverse_dns_lookup(ip_address) if ip_address != "N/A" else "N/A"
+            }
 
         print(f"\n{Fore.CYAN}[*] Passive discovery completed. Found {len(discovered_hosts_list)} hosts.{Style.RESET_ALL}")
 
@@ -1339,27 +1358,8 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         total_hosts = len(self.results["hosts"])
         total_ports = sum(len(host_data["ports"]) for host_data in self.results["hosts"].values())
 
-        # DNS lookup caches to avoid redundant lookups
-        dns_cache = {}  # hostname -> IP
-        rdns_cache = {}  # IP -> reverse DNS
-
-        # Perform WHOIS lookups for targets
-        whois_results = {}
-        if HAS_WHOIS and self.enable_whois:
-            print(f"\n{Fore.YELLOW}[+] Performing WHOIS lookups for targets...{Style.RESET_ALL}")
-            for target in self.targets:
-                # Extract domain from target (skip IP ranges)
-                domain = self.extract_domain(target)
-                if domain and domain not in whois_results:
-                    whois_results[target] = self.whois_lookup(target)
-                elif not domain:
-                    # For IP addresses or ranges, try to get the first host
-                    try:
-                        network = ipaddress.ip_network(target, strict=False)
-                        if network.num_addresses == 1:
-                            whois_results[target] = self.whois_lookup(str(network.network_address))
-                    except:
-                        pass
+        # Use pre-cached WHOIS results
+        whois_results = self.results.get("whois", {})
 
         # Extract the directory name to use as prefix
         dir_name = os.path.basename(self.output_dir)
@@ -1420,18 +1420,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 f.write("-" * 20 + "\n")
                 if self.results["hosts"]:
                     for host, data in self.results["hosts"].items():
-                        # Resolve domain to IP address (with caching)
-                        if host not in dns_cache:
-                            dns_cache[host] = self.resolve_domain_to_ip(host)
-                        ip_address = dns_cache[host]
-
-                        # Perform reverse DNS lookup on the IP address (with caching)
-                        if ip_address != "N/A":
-                            if ip_address not in rdns_cache:
-                                rdns_cache[ip_address] = self.reverse_dns_lookup(ip_address)
-                            reverse_dns = rdns_cache[ip_address]
-                        else:
-                            reverse_dns = "N/A"
+                        # Use pre-cached DNS and rDNS info
+                        ip_address = data.get("ip_address", "N/A")
+                        reverse_dns = data.get("reverse_dns", "N/A")
 
                         f.write(f"\nHost: {host}")
                         if ip_address != host and ip_address != "N/A":
@@ -1467,18 +1458,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 scan_time = self.results['scan_info']['start_time']
                 if self.results["hosts"]:
                     for host, data in self.results["hosts"].items():
-                        # Resolve domain to IP address (with caching)
-                        if host not in dns_cache:
-                            dns_cache[host] = self.resolve_domain_to_ip(host)
-                        ip_address = dns_cache[host]
-
-                        # Perform reverse DNS lookup on the IP address (with caching)
-                        if ip_address != "N/A":
-                            if ip_address not in rdns_cache:
-                                rdns_cache[ip_address] = self.reverse_dns_lookup(ip_address)
-                            reverse_dns = rdns_cache[ip_address]
-                        else:
-                            reverse_dns = "N/A"
+                        # Use pre-cached DNS and rDNS info
+                        ip_address = data.get("ip_address", "N/A")
+                        reverse_dns = data.get("reverse_dns", "N/A")
 
                         if data["ports"]:
                             for port, port_data in data["ports"].items():
@@ -1541,27 +1523,8 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
 
         total_hosts = len(self.results["hosts"])
 
-        # DNS lookup caches to avoid redundant lookups
-        dns_cache = {}  # hostname -> IP
-        rdns_cache = {}  # IP -> reverse DNS
-
-        # Perform WHOIS lookups for targets
-        whois_results = {}
-        if HAS_WHOIS and self.enable_whois:
-            print(f"\n{Fore.YELLOW}[+] Performing WHOIS lookups for targets...{Style.RESET_ALL}")
-            for target in self.targets:
-                # Extract domain from target (skip IP ranges)
-                domain = self.extract_domain(target)
-                if domain and domain not in whois_results:
-                    whois_results[target] = self.whois_lookup(target)
-                elif not domain:
-                    # For IP addresses or ranges, try to get the first host
-                    try:
-                        network = ipaddress.ip_network(target, strict=False)
-                        if network.num_addresses == 1:
-                            whois_results[target] = self.whois_lookup(str(network.network_address))
-                    except:
-                        pass
+        # Use pre-cached WHOIS results
+        whois_results = self.results.get("whois", {})
 
         # Extract the directory name to use as prefix
         dir_name = os.path.basename(self.output_dir)
@@ -1620,18 +1583,9 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 f.write("-" * 20 + "\n")
                 if self.results["hosts"]:
                     for host in sorted(self.results["hosts"].keys()):
-                        # Resolve domain to IP address (with caching)
-                        if host not in dns_cache:
-                            dns_cache[host] = self.resolve_domain_to_ip(host)
-                        ip_address = dns_cache[host]
-
-                        # Perform reverse DNS lookup on the IP address (with caching)
-                        if ip_address != "N/A":
-                            if ip_address not in rdns_cache:
-                                rdns_cache[ip_address] = self.reverse_dns_lookup(ip_address)
-                            reverse_dns = rdns_cache[ip_address]
-                        else:
-                            reverse_dns = "N/A"
+                        data = self.results["hosts"][host]
+                        ip_address = data.get("ip_address", "N/A")
+                        reverse_dns = data.get("reverse_dns", "N/A")
 
                         if ip_address != host and ip_address != "N/A":
                             if reverse_dns != "N/A" and reverse_dns != host and reverse_dns != ip_address:
@@ -1656,19 +1610,8 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                 scan_time = self.results['scan_info']['start_time']
                 if self.results["hosts"]:
                     for host, data in self.results["hosts"].items():
-                        # Resolve domain to IP address (with caching)
-                        if host not in dns_cache:
-                            dns_cache[host] = self.resolve_domain_to_ip(host)
-                        ip_address = dns_cache[host]
-
-                        # Perform reverse DNS lookup on the IP address (with caching)
-                        if ip_address != "N/A":
-                            if ip_address not in rdns_cache:
-                                rdns_cache[ip_address] = self.reverse_dns_lookup(ip_address)
-                            reverse_dns = rdns_cache[ip_address]
-                        else:
-                            reverse_dns = "N/A"
-
+                        ip_address = data.get("ip_address", "N/A")
+                        reverse_dns = data.get("reverse_dns", "N/A")
                         discovery_method = data.get('discovery_method', 'passive')
                         writer.writerow([host, ip_address, reverse_dns, discovery_method, scan_time])
 
@@ -1699,6 +1642,29 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         if json_file:
             print(f"  - JSON Host List: {json_file}")
 
+    def perform_initial_lookups(self):
+        """Perform WHOIS lookups for targets early in the lifecycle"""
+        if not HAS_WHOIS or not self.enable_whois:
+            return
+
+        print(f"\n{Fore.YELLOW}[+] Performing Initial WHOIS Lookups for Targets...{Style.RESET_ALL}")
+        for target in self.targets:
+            # Extract domain from target (skip IP ranges)
+            domain = self.extract_domain(target)
+            if domain and domain not in self.results["whois"]:
+                self.results["whois"][target] = self.whois_lookup(target)
+            elif not domain:
+                # For IP addresses or ranges, try to get WHOIS for the IP itself
+                try:
+                    network = ipaddress.ip_network(target, strict=False)
+                    if network.num_addresses == 1:
+                        target_ip = str(network.network_address)
+                        if target_ip not in self.results["whois"]:
+                            self.results["whois"][target] = self.whois_lookup(target_ip)
+                except Exception:
+                    pass
+        self._save_checkpoint()
+
     def run_scan(self, enable_nmap=False, masscan_only=False, amass_only=False):
         """Execute complete reconnaissance scan"""
         if not self.validate_targets():
@@ -1710,6 +1676,11 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
         self.scan_state["masscan_only"] = masscan_only
         self.scan_state["amass_only"] = amass_only
         self._start_checkpointing()
+
+        # Perform initial lookups (WHOIS for targets)
+        if "initial_lookups" not in self.scan_state["completed_phases"]:
+            self.perform_initial_lookups()
+            self._mark_phase_complete("initial_lookups")
 
         # Inform user about ping setting
         if not self.enable_ping and self.discovery_mode == "active":
