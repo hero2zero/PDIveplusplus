@@ -1,0 +1,3 @@
+Host,IP_Address,Reverse_DNS,Port,Protocol,State,Service,Scan_Time
+petrozone.com,137.117.17.70,N/A,80,tcp,open,http (Unknown),2026-03-13T11:49:54.277177
+petrozone.com,137.117.17.70,N/A,443,tcp,open,https,2026-03-13T11:49:54.277177

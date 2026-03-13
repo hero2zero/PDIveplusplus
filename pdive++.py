@@ -67,7 +67,7 @@ if HAS_COLORAMA:
     init(autoreset=True)
 
 # Version constant
-VERSION = "1.7.2"
+VERSION = "1.7.4"
 
 # Top 1000 ports (based on nmap's default port frequency ranking)
 # This is a commonly used port list for security scanning
@@ -75,7 +75,7 @@ TOP_1000_PORTS = "1,3-4,6-7,9,13,17,19-26,30,32-33,37,42-43,49,53,70,79-85,88-90
 
 
 class PDIve:
-    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, all_ports=False, amass_timeout=180, masscan_timeout=300, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None):
+    def __init__(self, targets, output_dir="pdive_output", threads=50, discovery_mode="active", enable_ping=False, all_ports=False, amass_timeout=180, masscan_timeout=300, json_only=False, no_json=False, dns_timeout=5, whois_timeout=15, enable_whois=True, checkpoint_interval=30, checkpoint_path=None, ca_bundle=None, insecure=False):
         self.targets = targets if isinstance(targets, list) else [targets]
         self.output_dir = output_dir
         self.threads = threads
@@ -91,6 +91,17 @@ class PDIve:
         self.enable_whois = enable_whois
         self.checkpoint_interval = checkpoint_interval
         self.checkpoint_path = checkpoint_path or os.path.join(output_dir, "scan_checkpoint.json")
+        self.ca_bundle = ca_bundle
+        self.insecure = insecure
+        
+        # Set verify parameter for requests
+        if self.insecure:
+            self.verify_ssl = False
+        elif self.ca_bundle:
+            self.verify_ssl = self.ca_bundle
+        else:
+            self.verify_ssl = True
+
         self.scan_state = {
             "completed_phases": [],
             "amass_hosts": [],
@@ -132,7 +143,9 @@ class PDIve:
                 "no_json": self.no_json,
                 "dns_timeout": self.dns_timeout,
                 "whois_timeout": self.whois_timeout,
-                "enable_whois": self.enable_whois
+                "enable_whois": self.enable_whois,
+                "ca_bundle": self.ca_bundle,
+                "insecure": self.insecure
             },
             "scan_state": self.scan_state,
             "results": self.results
@@ -465,8 +478,8 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                         url = f"{protocol}://{host}:{port}"
 
                     try:
-                        # Suppress SSL warnings and disable SSL verification for reconnaissance
-                        response = requests.get(url, timeout=5, verify=False,
+                        # Use configured SSL verification
+                        response = requests.get(url, timeout=5, verify=self.verify_ssl,
                                               headers={'User-Agent': f'PDIve++/{VERSION}'})
                         server_header = response.headers.get('Server', 'Unknown')
                         service_info = f"{service} ({server_header})"
@@ -1248,7 +1261,8 @@ Amass Timeout: {Fore.GREEN}{amass_timeout_display}{Style.RESET_ALL}
                     url = f"{protocol}://{host}:{port}"
 
                 try:
-                    response = requests.get(url, timeout=5, verify=False,
+                    # Use configured SSL verification
+                    response = requests.get(url, timeout=5, verify=self.verify_ssl,
                                           headers={'User-Agent': f'PDIve++/{VERSION}'})
                     server_header = response.headers.get('Server', 'Unknown')
                     service_info = f"{service} ({server_header})"
@@ -1914,6 +1928,10 @@ Examples:
                        help='WHOIS lookup timeout in seconds (default: 15)')
     parser.add_argument('--no-whois', action='store_true',
                        help='Disable WHOIS lookups in reports')
+    parser.add_argument('--ca-bundle', metavar='PATH',
+                       help='Path to CA bundle for SSL verification')
+    parser.add_argument('-k', '--insecure', action='store_true',
+                       help='Disable SSL verification (insecure)')
     parser.add_argument('--checkpoint-interval', type=int, metavar='SECONDS', default=30,
                        help='Checkpoint interval in seconds (default: 30; 0 to disable)')
     parser.add_argument('--resume', metavar='CHECKPOINT_JSON',
@@ -1932,6 +1950,10 @@ Examples:
     # Validate argument values
     if args.threads < 1 or args.threads > 1000:
         logger.error("Thread count must be between 1 and 1000")
+        sys.exit(1)
+
+    if args.ca_bundle and not os.path.exists(args.ca_bundle):
+        logger.error(f"CA bundle not found: {args.ca_bundle}")
         sys.exit(1)
 
     if args.amass_timeout is not None and (args.amass_timeout < 1 or args.amass_timeout > 3600):
@@ -2024,7 +2046,9 @@ Examples:
             whois_timeout=cfg.get("whois_timeout", args.whois_timeout),
             enable_whois=cfg.get("enable_whois", (not args.no_whois)),
             checkpoint_interval=args.checkpoint_interval,
-            checkpoint_path=args.resume
+            checkpoint_path=args.resume,
+            ca_bundle=cfg.get("ca_bundle", args.ca_bundle),
+            insecure=cfg.get("insecure", args.insecure)
         )
         pdive.results = resume_data.get("results", pdive.results)
         pdive.scan_state = resume_data.get("scan_state", pdive.scan_state)
@@ -2044,7 +2068,9 @@ Examples:
             dns_timeout=args.dns_timeout,
             whois_timeout=args.whois_timeout,
             enable_whois=(not args.no_whois),
-            checkpoint_interval=args.checkpoint_interval
+            checkpoint_interval=args.checkpoint_interval,
+            ca_bundle=args.ca_bundle,
+            insecure=args.insecure
         )
     if resume_data:
         resume_enable_nmap = resume_data.get("scan_state", {}).get("enable_nmap", args.nmap)

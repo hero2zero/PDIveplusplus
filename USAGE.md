@@ -1,13 +1,13 @@
 # PDIve++ Usage
 
 `pdive++.py` is a CLI reconnaissance tool for authorized security testing.
-Current Version: v1.7.2
+Current Version: v1.7.4
 
 ## Basic Syntax
 
 ```bash
 python pdive++.py -t <target> [options]
-python pdive++.py -v -f <targets_file> [options]
+python pdive++.py -v -k -f <targets_file> [options]
 ```
 
 ## Targets
@@ -26,6 +26,8 @@ python pdive++.py -v -f <targets_file> [options]
 - `-T, --threads <n>`: Thread count (1-1000, default: 50)
 - `-m, --mode <active|passive>`: Discovery mode (default: `active`)
 - `-v, --verbose`: Enable debug-level logging for troubleshooting
+- `-k, --insecure`: Disable SSL verification (useful for self-signed certificates)
+- `--ca-bundle <path>`: Path to a custom CA bundle for SSL verification
 - `--ping`: Enable ICMP ping discovery
 - `--all-ports`: Scan all ports 1-65535 (default: scan top 1000 ports only for faster results)
 

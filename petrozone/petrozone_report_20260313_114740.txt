@@ -1,0 +1,23 @@
+PDIVE++ DETAILED SCAN REPORT
+============================================================
+
+SCAN SUMMARY
+--------------------
+Targets:
+  petrozone.com
+
+Scan Start Time: 2026-03-13T11:46:39.834873
+Scan End Time: 2026-03-13T11:47:40.290923
+Scanner Version: PDIve++ v1.7.3
+Total Live Hosts: 1
+Total Open Ports: 2
+Unresponsive Hosts: 0
+
+DETAILED RESULTS
+--------------------
+
+Host: petrozone.com (137.117.17.70)
+===================================
+Open Ports:
+     80/tcp  http (Unknown)
+    443/tcp  https

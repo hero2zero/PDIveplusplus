@@ -5,6 +5,20 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - 2026-03-13
+
+### Changed
+- **Enhanced Amass Installation Guidance**: Updated `INSTALL.md` with explicit instructions for installing `amass` via multiple methods (package managers, Go, and direct binary download).
+- Synchronized version strings across all supporting documentation (`README.md`, `USAGE.md`, `INSTALL.md`).
+
+## [1.7.3] - 2026-03-13
+
+### Added
+- **SSL Configuration Options**: Added CLI arguments to control SSL verification for HTTP-based service checks.
+  - `--ca-bundle <PATH>`: Specify a custom CA bundle for SSL verification.
+  - `-k, --insecure`: Disable SSL verification (useful for internal environments with self-signed certs).
+- Configuration for SSL verification is now saved in checkpoints and honored during resumed scans.
+
 ## [1.7.2] - 2026-03-13
 
 ### Changed
@@ -145,6 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.7.4]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.3...v1.7.4
+[1.7.3]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.6.0...v1.7.0
