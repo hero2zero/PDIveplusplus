@@ -1,7 +1,7 @@
 # PDIve++
 
 PDIve++ is a CLI tool for authorized network reconnaissance and discovery workflows.
-Current Version: v1.7.0
+Current Version: v1.7.2
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ Current Version: v1.7.0
 ```bash
 python pdive++.py -t 127.0.0.1 --no-json
 python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
-python pdive++.py -t 192.168.0.0/16 --masscan --masscan-timeout 600
+python pdive++.py -t 192.168.0.0/16 --masscan --masscan-timeout 600 -v
 python pdive++.py -t example.com --amass
 python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 ```
@@ -27,6 +27,9 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 ## Notes
 
 - Use only on systems you are explicitly authorized to test.
+- Logging and Verbosity:
+  - Default output uses standardized logging with timestamps.
+  - `-v, --verbose`: Enable debug-level logging for detailed troubleshooting.
 - Scanning mode options (mutually exclusive):
   - `--nmap`: Detailed Nmap service enumeration after masscan
   - `--masscan`: Fast port scanning with basic service detection

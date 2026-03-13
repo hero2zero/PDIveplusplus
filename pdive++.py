@@ -8,6 +8,7 @@ import argparse
 import csv
 import ipaddress
 import json
+import logging
 import os
 import socket
 import sys
@@ -16,6 +17,17 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("pdive")
 
 try:
     from colorama import init, Fore, Back, Style
@@ -35,27 +47,27 @@ try:
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
-    print("Note: requests module not available, HTTP-based service checks disabled")
+    logger.warning("requests module not available, HTTP-based service checks disabled")
 
 try:
     import nmap
     HAS_NMAP = True
 except ImportError:
     HAS_NMAP = False
-    print("Note: nmap module not available, nmap scanning disabled")
+    logger.warning("nmap module not available, nmap scanning disabled")
 
 try:
     import whois
     HAS_WHOIS = True
 except ImportError:
     HAS_WHOIS = False
-    print("Note: whois module not available, whois lookups disabled")
+    logger.warning("whois module not available, whois lookups disabled")
 
 if HAS_COLORAMA:
     init(autoreset=True)
 
 # Version constant
-VERSION = "1.7.1"
+VERSION = "1.7.2"
 
 # Top 1000 ports (based on nmap's default port frequency ranking)
 # This is a commonly used port list for security scanning
@@ -1906,13 +1918,20 @@ Examples:
                        help='Checkpoint interval in seconds (default: 30; 0 to disable)')
     parser.add_argument('--resume', metavar='CHECKPOINT_JSON',
                        help='Resume a prior scan from a checkpoint JSON file')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                       help='Enable verbose logging (DEBUG level)')
     parser.add_argument('--version', action='version', version=f'PDIve++ {VERSION}')
 
     args = parser.parse_args()
 
+    # Set logging level based on verbose flag
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Verbose logging enabled")
+
     # Validate argument values
     if args.threads < 1 or args.threads > 1000:
-        print(f"{Fore.RED}[-] Error: Thread count must be between 1 and 1000{Style.RESET_ALL}")
+        logger.error("Thread count must be between 1 and 1000")
         sys.exit(1)
 
     if args.amass_timeout is not None and (args.amass_timeout < 1 or args.amass_timeout > 3600):
