@@ -47,20 +47,22 @@ Ensure `~/go/bin` is in your `PATH`.
 
 ## 3. Create/activate a virtual environment
 
+**IMPORTANT:** Always use a virtualenv to avoid dependency issues.
+
 ### Windows (PowerShell)
 
 ```powershell
 cd /path/to/PDIveplusplus
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 ```
 
 ### Linux/macOS
 
 ```bash
 cd /path/to/PDIveplusplus
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
 ## 4. Install Python dependencies
@@ -68,6 +70,8 @@ source .venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
+**Note:** The `python-whois` package is NOT the same as the `whois` CLI tool from `apt`. Installing `apt install whois` does not provide the Python module.
 
 ## 5. Verify optional binaries in PATH
 
@@ -81,8 +85,40 @@ If a binary is missing, install it via your OS package manager or the official r
 
 ## 6. Run
 
+### Standard Execution (No sudo)
+
 ```bash
 python pdive++.py -t 127.0.0.1 --no-json
+```
+
+### Execution with sudo (If Required for Raw Sockets)
+
+Some scanning modes (masscan, nmap) may require elevated privileges for raw socket access.
+
+**❌ WRONG - Don't use system Python with sudo:**
+```bash
+sudo python3 pdive++.py -t 192.168.1.0/24
+# This will cause "module not available" errors even if you installed them!
+```
+
+**✅ CORRECT - Use virtualenv Python with sudo:**
+```bash
+sudo ./venv/bin/python pdive++.py -t 192.168.1.0/24      # Linux/macOS
+sudo .\venv\Scripts\python.exe pdive++.py -t 192.168.1.0/24   # Windows
+```
+
+**Why?**
+- `sudo python3` uses the system Python interpreter (`/usr/bin/python3`)
+- Your virtualenv packages are installed in `./venv/lib/python3.x/site-packages/`
+- System Python cannot see virtualenv packages
+- Solution: Use `sudo ./venv/bin/python` to preserve the virtualenv context
+
+### Verification
+
+Use verbose mode to see which Python interpreter is active:
+```bash
+python pdive++.py -t 127.0.0.1 -v --no-json
+# Look for: "Python interpreter: /path/to/python"
 ```
 
 ## 7. Resume (Optional)
@@ -95,10 +131,41 @@ python pdive++.py --resume ./pdive_output/scan_checkpoint.json
 
 ## Troubleshooting
 
-- `requests module not available`: run `pip install -r requirements.txt`
+### Module Not Found Errors
+
+**Problem: "whois module not available" even after `pip install python-whois`**
+
+This usually means you're running with the wrong Python interpreter.
+
+**Diagnosis:**
+```bash
+# Check which Python you're using
+python pdive++.py -t 127.0.0.1 -v --no-json
+# Look for: "Python interpreter: /path/to/python"
+```
+
+**Solution:**
+- If you see `/usr/bin/python3` but have a virtualenv, you're using system Python
+- Activate your virtualenv: `source venv/bin/activate`
+- Or if using sudo: `sudo ./venv/bin/python pdive++.py -t ...`
+
+**Common causes:**
+- Running `sudo python3` instead of `sudo ./venv/bin/python`
+- Not activating the virtualenv before running
+- Installing with `pip` but running with `pip3` (different Python versions)
+
+### Other Issues
+
+- `requests module not available`: run `pip install -r requirements.txt` in your active virtualenv
 - `nmap module not available`: install `python-nmap` and ensure `nmap` binary is installed
 - `Amass not found in PATH`: Follow the instructions in Section 2 above.
 - `Masscan not found in PATH`: install `masscan` or let tool fall back to built-in scanner
 - Windows (masscan): ensure `masscan.exe` is in `PATH` and run PowerShell as Administrator if raw socket scans fail
 - Windows (nmap): install Nmap for Windows and ensure `nmap.exe` is in `PATH`
 - On restricted environments, raw-socket scans may require elevated privileges or capabilities
+
+### Important Note
+
+- `apt install whois` installs a CLI tool, NOT the Python module
+- You need `pip install python-whois` for the Python import
+- These are completely different packages!

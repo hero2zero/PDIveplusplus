@@ -29,6 +29,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pdive")
 
+# Environment detection utilities
+def detect_virtualenv():
+    """Detect if running inside a virtualenv or system Python."""
+    in_venv = hasattr(sys, 'real_prefix') or (
+        hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix
+    )
+    return in_venv
+
+def detect_local_venv():
+    """Check if a local venv exists in common locations."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    common_venv_names = ['venv', '.venv', 'env', '.env']
+    for venv_name in common_venv_names:
+        venv_path = os.path.join(script_dir, venv_name)
+        if os.path.isdir(venv_path):
+            # Check for bin/python (Unix) or Scripts/python.exe (Windows)
+            if sys.platform.startswith('win'):
+                python_path = os.path.join(venv_path, 'Scripts', 'python.exe')
+            else:
+                python_path = os.path.join(venv_path, 'bin', 'python')
+            if os.path.exists(python_path):
+                return python_path
+    return None
+
+def check_sudo_venv_mismatch():
+    """Warn if running with sudo but a local venv exists and we're not using it."""
+    if os.geteuid() == 0 if hasattr(os, 'geteuid') else False:
+        # Running as root
+        if not detect_virtualenv():
+            # Not in a virtualenv
+            local_venv_python = detect_local_venv()
+            if local_venv_python:
+                logger.warning("=" * 70)
+                logger.warning("VIRTUALENV MISMATCH DETECTED")
+                logger.warning("=" * 70)
+                logger.warning(f"Running as root with system Python: {sys.executable}")
+                logger.warning(f"A local virtualenv exists at: {local_venv_python}")
+                logger.warning("")
+                logger.warning("This may cause 'module not available' errors even if you")
+                logger.warning("installed dependencies in the virtualenv.")
+                logger.warning("")
+                logger.warning("SOLUTION: Use the virtualenv Python interpreter:")
+                logger.warning(f"  sudo {local_venv_python} {os.path.abspath(__file__)} [args]")
+                logger.warning("=" * 70)
+                logger.warning("")
+
 try:
     from colorama import init, Fore, Back, Style
     HAS_COLORAMA = True
@@ -47,21 +93,79 @@ try:
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
-    logger.warning("requests module not available, HTTP-based service checks disabled")
+    logger.error("=" * 70)
+    logger.error("DEPENDENCY ERROR: Python module 'requests' is not installed")
+    logger.error("=" * 70)
+    logger.error(f"Active interpreter: {sys.executable}")
+    logger.error("")
+    logger.error("This module is required for HTTP-based service checks.")
+    logger.error("")
+    logger.error("SOLUTION:")
+    if detect_virtualenv():
+        logger.error("  Your virtualenv is active. Install with:")
+        logger.error("  pip install requests")
+    else:
+        logger.error("  If you installed it in a virtualenv, activate it first:")
+        logger.error("  source ./venv/bin/activate  # Linux/macOS")
+        logger.error("  .\\venv\\Scripts\\Activate.ps1  # Windows PowerShell")
+        logger.error("  pip install requests")
+    logger.error("=" * 70)
+    logger.error("")
 
 try:
     import nmap
     HAS_NMAP = True
 except ImportError:
     HAS_NMAP = False
-    logger.warning("nmap module not available, nmap scanning disabled")
+    logger.warning("=" * 70)
+    logger.warning("OPTIONAL: Python module 'python-nmap' is not installed")
+    logger.warning(f"Active interpreter: {sys.executable}")
+    logger.warning("")
+    logger.warning("Nmap scanning (--nmap flag) will not be available.")
+    logger.warning("")
+    logger.warning("To enable nmap scanning:")
+    if detect_virtualenv():
+        logger.warning("  pip install python-nmap")
+    else:
+        logger.warning("  Activate your virtualenv first, then:")
+        logger.warning("  pip install python-nmap")
+    logger.warning("  Also ensure 'nmap' binary is installed and in PATH")
+    logger.warning("=" * 70)
+    logger.warning("")
 
 try:
     import whois
     HAS_WHOIS = True
 except ImportError:
     HAS_WHOIS = False
-    logger.warning("whois module not available, whois lookups disabled")
+    logger.warning("=" * 70)
+    logger.warning("OPTIONAL: Python module 'python-whois' is not installed")
+    logger.warning(f"Active interpreter: {sys.executable}")
+    logger.warning("")
+    logger.warning("WHOIS lookups in reports will be disabled.")
+    logger.warning("")
+    logger.warning("IMPORTANT:")
+    logger.warning("  - The 'whois' CLI tool (apt install whois) is NOT the Python module")
+    logger.warning("  - You need the Python package 'python-whois'")
+    logger.warning("")
+    logger.warning("To enable WHOIS lookups:")
+    if detect_virtualenv():
+        logger.warning("  pip install python-whois")
+    else:
+        local_venv = detect_local_venv()
+        if local_venv:
+            logger.warning("  A local virtualenv was detected. Use its interpreter:")
+            if sys.platform.startswith('win'):
+                logger.warning(f"  {local_venv} -m pip install python-whois")
+                logger.warning(f"  Then run: {local_venv} {os.path.abspath(__file__)} [args]")
+            else:
+                logger.warning(f"  {local_venv} -m pip install python-whois")
+                logger.warning(f"  Then run: sudo {local_venv} {os.path.abspath(__file__)} [args]")
+        else:
+            logger.warning("  Activate your virtualenv first, then:")
+            logger.warning("  pip install python-whois")
+    logger.warning("=" * 70)
+    logger.warning("")
 
 if HAS_COLORAMA:
     init(autoreset=True)
@@ -1946,6 +2050,12 @@ Examples:
     if args.verbose:
         logger.setLevel(logging.DEBUG)
         logger.debug("Verbose logging enabled")
+        logger.debug(f"Python interpreter: {sys.executable}")
+        logger.debug(f"Python version: {sys.version}")
+        logger.debug(f"In virtualenv: {detect_virtualenv()}")
+
+    # Check for virtualenv mismatch (especially with sudo)
+    check_sudo_venv_mismatch()
 
     # Validate argument values
     if args.threads < 1 or args.threads > 1000:

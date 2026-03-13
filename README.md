@@ -8,6 +8,58 @@ Current Version: v1.7.4
 1. Install dependencies and prerequisites: see `INSTALL.md`
 2. Run a scan: see `USAGE.md`
 
+## Setup and Execution
+
+### Correct Setup (Virtualenv Recommended)
+
+```bash
+# 1. Create virtualenv
+python3 -m venv venv
+
+# 2. Activate virtualenv
+source venv/bin/activate           # Linux/macOS
+# OR
+.\venv\Scripts\Activate.ps1        # Windows PowerShell
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Run the tool (without sudo if possible)
+python pdive++.py -t 192.168.1.0/24
+
+# 5. If sudo is required (for raw sockets), use the virtualenv interpreter
+sudo ./venv/bin/python pdive++.py -t 192.168.1.0/24     # Linux/macOS
+```
+
+### Common Pitfall: sudo with Wrong Python
+
+**❌ WRONG - This bypasses your virtualenv:**
+```bash
+pip install python-whois          # Installs in venv
+sudo python3 pdive++.py -t ...    # Uses system Python, not venv Python
+# Result: "whois module not available" error
+```
+
+**✅ CORRECT - Use virtualenv interpreter with sudo:**
+```bash
+pip install python-whois          # Installs in venv
+sudo ./venv/bin/python pdive++.py -t ...   # Uses venv Python
+# Result: Works correctly
+```
+
+### Why This Happens
+
+- `pip install` puts packages in your virtualenv (`./venv/lib/python3.x/site-packages/`)
+- `sudo python3` uses the system Python interpreter (`/usr/bin/python3`)
+- System Python cannot see virtualenv packages
+- `apt install whois` installs the CLI tool, NOT the Python module `python-whois`
+
+### Virtualenv Detection
+
+The tool automatically detects and warns about virtualenv mismatches:
+- Use `-v` flag to see which Python interpreter is active
+- If running as root without a virtualenv, you'll get a warning if a local venv exists
+
 ## Core Docs
 
 - Installation: `INSTALL.md`
