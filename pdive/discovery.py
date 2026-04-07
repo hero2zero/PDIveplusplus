@@ -149,13 +149,16 @@ class Discovery:
             print(f"{Fore.CYAN}[*] Performing passive discovery on domain: {domain}{Style.RESET_ALL}")
             
             # Provider: Amass
-            discovered_hosts.update(self.amass_discovery(domain))
+            if self.config.enable_amass:
+                discovered_hosts.update(self.amass_discovery(domain))
             
             # Provider: DNSDumpster
-            discovered_hosts.update(self.dnsdumpster_discovery(domain))
+            if self.config.enable_dnsdumpster:
+                discovered_hosts.update(self.dnsdumpster_discovery(domain))
             
             # Provider: crt.sh
-            discovered_hosts.update(self.crtsh_discovery(domain))
+            if self.config.enable_crtsh:
+                discovered_hosts.update(self.crtsh_discovery(domain))
 
         return discovered_hosts
 

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from .utils import (
-    Fore, Style, VERSION, ScannerConfig, 
+    Fore, Style, VERSION, BANNER, ScannerConfig, HAS_WHOIS,
     resolve_domain_to_ip, reverse_dns_lookup
 )
 from .discovery import Discovery
@@ -62,9 +62,31 @@ class PDIve:
 
     def run(self):
         """Execute the full scan workflow"""
-        print(f"\n{Fore.CYAN}PDIve++ v{VERSION} starting...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}PDIve++ v{VERSION} starting...{Style.RESET_ALL}")
         
-        # 1. Discovery
+        # 1. WHOIS Lookups for primary targets (Real-time)
+        if self.config.enable_whois and HAS_WHOIS:
+            print(f"\n{Fore.YELLOW}[+] Performing WHOIS Lookups for targets...{Style.RESET_ALL}")
+            if "whois" not in self.results:
+                self.results["whois"] = {}
+                
+            for target in self.config.targets:
+                # Basic validation: only WHOIS valid domains or IPs
+                print(f"{Fore.CYAN}[*] WHOIS lookup for {target}...{Style.RESET_ALL}")
+                whois_data = self.scanner.whois_lookup(target)
+                
+                if "error" not in whois_data:
+                    self.results["whois"][target] = whois_data
+                    # Real-time print of results
+                    print(f"    {Fore.GREEN}Registrar: {whois_data.get('registrar', 'N/A')}{Style.RESET_ALL}")
+                    print(f"    {Fore.GREEN}Organization: {whois_data.get('org', 'N/A')}{Style.RESET_ALL}")
+                    print(f"    {Fore.GREEN}Country: {whois_data.get('country', 'N/A')}{Style.RESET_ALL}")
+                    if whois_data.get('emails') and whois_data.get('emails') != 'N/A':
+                        print(f"    {Fore.GREEN}Email: {whois_data.get('emails')}{Style.RESET_ALL}")
+                else:
+                    print(f"    {Fore.RED}[-] WHOIS failed: {whois_data['error']}{Style.RESET_ALL}")
+
+        # 2. Discovery
         if self.config.discovery_mode == "passive":
             discovered = self.discovery.passive_discovery()
             self.scan_state["live_hosts"] = list(discovered)
@@ -73,7 +95,7 @@ class PDIve:
             self.scan_state["live_hosts"] = discovery_results["live_hosts"]
             self.results["unresponsive_hosts"] = discovery_results["unresponsive_count"]
 
-        # 2. Metadata Lookup (DNS/rDNS)
+        # 3. Metadata Lookup (DNS/rDNS)
         print(f"\n{Fore.YELLOW}[+] Performing Metadata Lookups...{Style.RESET_ALL}")
         for host in self.scan_state["live_hosts"]:
             ip = resolve_domain_to_ip(host, self.config.dns_timeout)
@@ -85,8 +107,8 @@ class PDIve:
                 "ports": {}
             }
 
-        # 3. Scanning
-        if self.scan_state["live_hosts"]:
+        # 4. Scanning
+        if self.config.enable_scan and self.scan_state["live_hosts"]:
             # Try masscan first
             port_results = self.scanner.masscan_scan(self.scan_state["live_hosts"])
             

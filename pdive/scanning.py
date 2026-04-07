@@ -12,7 +12,8 @@ from typing import List, Dict, Any, Optional, Union
 
 from .utils import (
     Fore, Style, HAS_REQUESTS, HAS_NMAP, HAS_WHOIS, VERSION, 
-    ScannerConfig, TOP_1000_PORTS, _show_progress_bar
+    ScannerConfig, TOP_1000_PORTS, _show_progress_bar, get_local_ip,
+    get_default_gateway
 )
 
 class Scanner:
@@ -125,6 +126,23 @@ class Scanner:
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.masscan_timeout)
+            
+            # Stage 1 Retry: Interface IP detection failure
+            if result.returncode != 0 and "failed to detect IP of interface" in result.stderr:
+                local_ip = get_local_ip()
+                if local_ip:
+                    print(f"{Fore.YELLOW}[!] Masscan failed to detect interface IP. Retrying with --source-ip {local_ip}...{Style.RESET_ALL}")
+                    cmd = cmd + ["--source-ip", local_ip]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.masscan_timeout)
+
+            # Stage 2 Retry: ARP timeout / Router MAC resolution failure (Common on Windows)
+            if result.returncode != 0 and "ARP timed-out" in result.stderr:
+                gateway_ip = get_default_gateway()
+                if gateway_ip:
+                    print(f"{Fore.YELLOW}[!] Masscan encountered ARP timeout. Retrying with --router-ip {gateway_ip}...{Style.RESET_ALL}")
+                    retry_cmd = cmd + ["--router-ip", gateway_ip]
+                    result = subprocess.run(retry_cmd, capture_output=True, text=True, timeout=self.config.masscan_timeout)
+
             if result.returncode == 0:
                 for line in result.stdout.strip().split('\n'):
                     if line.strip() and not line.startswith('#'):
@@ -137,7 +155,9 @@ class Scanner:
                             masscan_results[host][port] = {"state": "open", "service": ""}
                             print(f"{Fore.GREEN}[+] Masscan found: {host}:{port}{Style.RESET_ALL}")
             else:
-                print(f"{Fore.RED}[-] Masscan failed, falling back to basic port scan{Style.RESET_ALL}")
+                print(f"{Fore.RED}[-] Masscan failed with exit code {result.returncode}{Style.RESET_ALL}")
+                if result.stderr:
+                    print(f"{Fore.YELLOW}[!] Masscan error: {result.stderr.strip()}{Style.RESET_ALL}")
                 return self.port_scan(hosts)
         except subprocess.TimeoutExpired:
             print(f"{Fore.RED}[-] Masscan timed out, falling back to basic port scan{Style.RESET_ALL}")
@@ -157,7 +177,16 @@ class Scanner:
             return self._basic_service_enumeration(scan_results)
 
         import nmap
-        nm = nmap.PortScanner()
+        import shutil
+        if not shutil.which('nmap'):
+            print(f"\n{Fore.RED}[-] Nmap binary not found in PATH, using basic identification{Style.RESET_ALL}")
+            return self._basic_service_enumeration(scan_results)
+
+        try:
+            nm = nmap.PortScanner()
+        except Exception as e:
+            print(f"\n{Fore.RED}[-] Failed to initialize Nmap: {e}{Style.RESET_ALL}")
+            return self._basic_service_enumeration(scan_results)
         
         updated_results = scan_results.copy()
         for host, ports in scan_results.items():
@@ -229,13 +258,24 @@ class Scanner:
 
         import whois
         try:
-            print(f"{Fore.CYAN}[*] WHOIS lookup for {target}...{Style.RESET_ALL}")
+            # print(f"{Fore.CYAN}[*] WHOIS lookup for {target}...{Style.RESET_ALL}") # Moved to core for real-time control
             w = whois.whois(target)
+            
+            # Extract more comprehensive information if available
+            def _clean(val):
+                if isinstance(val, list):
+                    return val[0] if val else "N/A"
+                return val or "N/A"
+
             data = {
-                "registrar": getattr(w, 'registrar', "N/A"),
-                "org": getattr(w, 'org', "N/A"),
-                "country": getattr(w, 'country', "N/A"),
-                "status": getattr(w, 'status', "N/A")
+                "domain_name": _clean(getattr(w, 'domain_name', None)),
+                "registrar": _clean(getattr(w, 'registrar', None)),
+                "org": _clean(getattr(w, 'org', None)),
+                "country": _clean(getattr(w, 'country', None)),
+                "status": _clean(getattr(w, 'status', None)),
+                "emails": _clean(getattr(w, 'emails', None)),
+                "creation_date": _clean(getattr(w, 'creation_date', None)),
+                "expiration_date": _clean(getattr(w, 'expiration_date', None))
             }
             return data
         except Exception as e:
