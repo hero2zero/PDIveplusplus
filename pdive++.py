@@ -4,13 +4,14 @@ import sys
 import os
 import logging
 from pdive.utils import (
-    VERSION, Fore, Style, ScannerConfig, logger,
+    VERSION, Fore, Style, BANNER, ScannerConfig, logger,
     detect_virtualenv, check_sudo_venv_mismatch, 
     load_targets_from_file, validate_targets
 )
 from pdive.core import PDIve
 
 def main():
+    print(BANNER)
     parser = argparse.ArgumentParser(description=f'PDIve++ v{VERSION} - Automated Network Reconnaissance')
     
     # Target selection
