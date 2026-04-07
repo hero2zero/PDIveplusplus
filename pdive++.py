@@ -3,12 +3,12 @@ import argparse
 import sys
 import os
 import logging
-from pdive.utils import (
+from lib.utils import (
     VERSION, Fore, Style, BANNER, ScannerConfig, logger,
     detect_virtualenv, check_sudo_venv_mismatch, 
     load_targets_from_file, validate_targets
 )
-from pdive.core import PDIve
+from lib.core import PDIve
 
 def main():
     print(BANNER)
