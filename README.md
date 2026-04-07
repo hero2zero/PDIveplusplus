@@ -1,109 +1,75 @@
 # PDIve++
 
-PDIve++ is a CLI tool for authorized network reconnaissance and discovery workflows.
-Current Version: v1.7.4
+PDIve++ is a modular CLI tool for authorized network reconnaissance and discovery workflows.
+Current Version: v1.7.5 (Enhanced Passive Discovery)
+
+## Project Overview
+
+PDIve++ has been refactored into a modular Python package for better maintainability and extensibility. It orchestrates multiple discovery and scanning tools into a unified workflow.
+
+### New Features & Improvements
+- **Targeted Passive Discovery**: Isolate specific OSINT tools like `amass`, `dnsdumpster`, or `crtsh`.
+- **Selective Scanning**: Skip the port scanning phase for pure discovery/OSINT workflows.
+- **Modular Architecture**: Logic is now separated into cohesive modules (`core`, `discovery`, `scanning`, `reporting`, `utils`).
+- **Real-time WHOIS**: WHOIS lookups for primary targets are now performed and displayed in real-time at the start of the scan.
+- **Enhanced Error Handling**: 
+  - Improved `masscan` reliability with automatic local IP detection and `--source-ip` retries.
+  - Robust `nmap` binary detection with graceful fallback to basic service identification.
+- **Type Safety**: Core modules now include comprehensive type hints.
 
 ## Quick Start
 
 1. Install dependencies and prerequisites: see `INSTALL.md`
 2. Run a scan: see `USAGE.md`
 
+## Project Structure
+
+```text
+PDIveplusplus/
+├── pdive/                  # Core package
+│   ├── core.py             # Scan orchestration
+│   ├── discovery.py        # Passive & active discovery
+│   ├── scanning.py         # Port & service scanning
+│   ├── reporting.py        # Report generation
+│   └── utils.py            # Helpers & configuration
+├── pdive++.py              # CLI entry point (wrapper)
+├── pdive++_legacy.py       # Original monolithic script (deprecated)
+├── GEMINI.md               # Development guidelines & roadmap
+└── ...
+```
+
 ## Setup and Execution
 
-### Correct Setup (Virtualenv Recommended)
+### Recommended Setup (Virtualenv)
 
 ```bash
-# 1. Create virtualenv
+# 1. Create and activate virtualenv
 python3 -m venv venv
-
-# 2. Activate virtualenv
 source venv/bin/activate           # Linux/macOS
 # OR
-.\venv\Scripts\Activate.ps1        # Windows PowerShell
+.\venv\Scripts\Activate.ps1        # Windows
 
-# 3. Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 4. Run the tool (without sudo if possible)
-python pdive++.py -t 192.168.1.0/24
-
-# 5. If sudo is required (for raw sockets), use the virtualenv interpreter
-sudo ./venv/bin/python pdive++.py -t 192.168.1.0/24     # Linux/macOS
+# 3. Run the tool
+python pdive++.py -t example.com
 ```
 
-### Common Pitfall: sudo with Wrong Python
+### Privileged Scans
 
-**❌ WRONG - This bypasses your virtualenv:**
-```bash
-pip install python-whois          # Installs in venv
-sudo python3 pdive++.py -t ...    # Uses system Python, not venv Python
-# Result: "whois module not available" error
-```
-
-**✅ CORRECT - Use virtualenv interpreter with sudo:**
-```bash
-pip install python-whois          # Installs in venv
-sudo ./venv/bin/python pdive++.py -t ...   # Uses venv Python
-# Result: Works correctly
-```
-
-### Why This Happens
-
-- `pip install` puts packages in your virtualenv (`./venv/lib/python3.x/site-packages/`)
-- `sudo python3` uses the system Python interpreter (`/usr/bin/python3`)
-- System Python cannot see virtualenv packages
-- `apt install whois` installs the CLI tool, NOT the Python module `python-whois`
-
-### Virtualenv Detection
-
-The tool automatically detects and warns about virtualenv mismatches:
-- Use `-v` flag to see which Python interpreter is active
-- If running as root without a virtualenv, you'll get a warning if a local venv exists
-
-## Core Docs
-
-- Installation: `INSTALL.md`
-- Usage and examples: `USAGE.md`
-- Python dependencies: `requirements.txt`
-
-## Example
+Some modes (`masscan`, `nmap`) require elevated privileges. Always use the virtualenv's Python interpreter when using `sudo`:
 
 ```bash
-python pdive++.py -t 127.0.0.1 --no-json
-python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
-python pdive++.py -t 192.168.0.0/16 --masscan --masscan-timeout 600 -v
-python pdive++.py -t example.com --ca-bundle /path/to/cert.pem
-python pdive++.py -t internal.local -k
-python pdive++.py --resume ./pdive_output/scan_checkpoint.json
+sudo ./venv/bin/python pdive++.py -t 192.168.1.0/24
 ```
 
-## Notes
+## Documentation
 
-- Use only on systems you are explicitly authorized to test.
-- Logging and Verbosity:
-  - Default output uses standardized logging with timestamps.
-  - `-v, --verbose`: Enable debug-level logging for detailed troubleshooting.
-- SSL Configuration:
-  - `--ca-bundle <path>`: Use a specific CA bundle for HTTP service checks.
-  - `-k, --insecure`: Disable SSL verification for internal testing.
-- Scanning mode options (mutually exclusive):
-  - `--nmap`: Detailed Nmap service enumeration after masscan
-  - `--masscan`: Fast port scanning with basic service detection
-  - `--amass`: Run only amass subdomain discovery
-- Port scanning options:
-  - `--all-ports`: Scan all ports 1-65535 (default: scan top 1000 ports only for faster results)
-  - Works with both `--masscan` and `--nmap` modes
-- Report format flags:
-  - `--json-only`: JSON reports only
-  - `--no-json`: disable JSON reports
-- Report lookup controls:
-  - `--dns-timeout <seconds>`: DNS lookup timeout (default: 5)
-  - `--whois-timeout <seconds>`: WHOIS lookup timeout (default: 15)
-  - `--no-whois`: disable WHOIS lookups in reports
-- Resumable scans:
-  - `--checkpoint-interval <seconds>`: autosave checkpoint interval (default: 30; 0 disables)
-  - `--resume <checkpoint_json>`: resume a prior scan from a checkpoint file
-- Timeout controls:
-  - `--amass-timeout <seconds>`: timeout for amass run (default: 180)
-  - `--masscan-timeout <seconds>`: timeout for masscan scans (default: 300)
-    - User is prompted to extend timeout interactively if timeout is reached
+- **Installation**: `INSTALL.md`
+- **Detailed Usage**: `USAGE.md`
+- **Development**: `GEMINI.md`
+
+## Safety Warning
+
+**PDIve++ is for authorized security testing only.** Users are responsible for ensuring they have explicit permission to scan target networks and domains.

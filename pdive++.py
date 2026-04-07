@@ -24,6 +24,10 @@ def main():
     
     parser.add_argument('--ping', action='store_true', help='Enable ICMP ping discovery')
     parser.add_argument('--all-ports', action='store_true', help='Scan all 65535 ports')
+    parser.add_argument('--amass', action='store_true', help='Run Amass discovery')
+    parser.add_argument('--dnsdumpster', action='store_true', help='Run DNSDumpster discovery')
+    parser.add_argument('--crtsh', action='store_true', help='Run crt.sh discovery')
+    parser.add_argument('--no-scan', action='store_true', help='Skip port scanning phase')
     parser.add_argument('--amass-timeout', type=int, default=180, help='Amass timeout in seconds')
     parser.add_argument('--masscan-timeout', type=int, default=300, help='Masscan timeout in seconds')
     parser.add_argument('--dns-timeout', type=int, default=5, help='DNS timeout in seconds')
@@ -65,11 +69,24 @@ def main():
         print("Aborted.")
         sys.exit(1)
 
+    # Handle passive discovery tool selection
+    discovery_mode = args.mode
+    enable_amass = True
+    enable_dnsdumpster = True
+    enable_crtsh = True
+
+    if args.amass or args.dnsdumpster or args.crtsh:
+        discovery_mode = "passive"
+        # If any specific tool is selected, only run selected tools
+        enable_amass = args.amass
+        enable_dnsdumpster = args.dnsdumpster
+        enable_crtsh = args.crtsh
+
     config = ScannerConfig(
         targets=targets,
         output_dir=args.output,
         threads=args.threads,
-        discovery_mode=args.mode,
+        discovery_mode=discovery_mode,
         enable_ping=args.ping,
         all_ports=args.all_ports,
         amass_timeout=args.amass_timeout,
@@ -77,6 +94,10 @@ def main():
         dns_timeout=args.dns_timeout,
         whois_timeout=args.whois_timeout,
         enable_whois=not args.no_whois,
+        enable_amass=enable_amass,
+        enable_dnsdumpster=enable_dnsdumpster,
+        enable_crtsh=enable_crtsh,
+        enable_scan=not args.no_scan,
         ca_bundle=args.ca_bundle,
         insecure=args.insecure
     )

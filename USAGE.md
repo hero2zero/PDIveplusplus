@@ -1,275 +1,105 @@
-# PDIve++ Usage
+# PDIve++ Usage Guide
 
-`pdive++.py` is a CLI reconnaissance tool for authorized security testing.
-Current Version: v1.7.4
+`pdive++.py` is a powerful reconnaissance tool for authorized security testing.
+Current Version: v1.7.5 (Enhanced Passive Discovery)
+
+## Core Workflow
+
+PDIve++ follows a structured reconnaissance lifecycle:
+1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
+2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration.
+3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts.
+4. **Fast Port Scanning**: High-speed discovery using `masscan` (optional).
+5. **Service Enumeration**: Detailed identification via `nmap` or built-in methods (optional).
+6. **Unified Reporting**: Generation of JSON and text reports.
 
 ## Basic Syntax
 
 ```bash
 python pdive++.py -t <target> [options]
-python pdive++.py -v -k -f <targets_file> [options]
+python pdive++.py -f <targets_file> -v -k [options]
 ```
-
-## Targets
-
-- Single host: `-t 10.0.0.5`
-- CIDR range: `-t 192.168.1.0/24`
-- Domain: `-t example.com`
-- Multiple targets: `-t "192.168.1.10,example.com,10.0.0.0/24"`
-- File input: `-f targets.txt` (one target per line, `#` allowed for comments)
 
 ## Key Options
 
-### General Options
+### General Selection
+- `-t, --target`: Comma-separated list of IP addresses, CIDR ranges, or hostnames.
+- `-f, --file`: Path to a file containing targets (one per line).
+- `-o, --output`: Output directory (default: `pdive_output`).
+- `-T, --threads`: Thread count for parallel tasks (default: 50).
+- `-m, --mode`: Discovery mode (`active` or `passive`, default: `active`).
 
-- `-o, --output <dir>`: Output directory (default: `pdive_output`)
-- `-T, --threads <n>`: Thread count (1-1000, default: 50)
-- `-m, --mode <active|passive>`: Discovery mode (default: `active`)
-- `-v, --verbose`: Enable debug-level logging for troubleshooting
-- `-k, --insecure`: Disable SSL verification (useful for self-signed certificates)
-- `--ca-bundle <path>`: Path to a custom CA bundle for SSL verification
-- `--ping`: Enable ICMP ping discovery
-- `--all-ports`: Scan all ports 1-65535 (default: scan top 1000 ports only for faster results)
+### Discovery & Scanning Features
+- `--ping`: Enable ICMP-based host discovery.
+- `--all-ports`: Scan the full TCP port range (1-65535) instead of the top 1000.
+- `--amass`: Explicitly run Amass for passive discovery (sets mode to passive).
+- `--dnsdumpster`: Explicitly run DNSDumpster for passive discovery (sets mode to passive).
+- `--crtsh`: Explicitly run crt.sh for passive discovery (sets mode to passive).
+- `--no-scan`: Skip the port scanning phase entirely.
+- `-k, --insecure`: Disable SSL verification for service checks.
+- `--ca-bundle`: Use a custom CA bundle for certificate verification.
+- `-v, --verbose`: Enable debug-level logging.
 
-### Scanning Mode (Mutually Exclusive)
+### Control & Tuning
+- `--amass-timeout`: Timeout for subdomain discovery (default: 180s).
+- `--masscan-timeout`: Timeout for port scanning (default: 300s).
+- `--dns-timeout`: Timeout for DNS/rDNS resolution (default: 5s).
+- `--whois-timeout`: Timeout for WHOIS queries (default: 15s).
+- `--no-whois`: Completely disable WHOIS lookups.
+- `--no-json`: Skip JSON report generation.
 
-**IMPORTANT**: `--nmap`, `--masscan`, and `--amass` cannot be used together. Choose one:
+## Examples
 
-- `--masscan`: Active mode only; skip passive discovery and run fast scan + basic service detection
-  - Faster scanning with basic service identification
-  - Good for quick reconnaissance
-- `--nmap`: Active mode only; run detailed nmap service enumeration after masscan
-  - Slower but more detailed service detection
-  - Includes version detection and enhanced service identification
-- `--amass`: Active mode only; run only amass subdomain discovery
-  - Performs only passive subdomain enumeration
-  - No port scanning or service detection
-  - Fastest option for domain reconnaissance
-
-### Report and Timeout Options
-
-- `--amass-timeout <seconds>`: Timeout for amass run (1-3600, default: 180)
-- `--masscan-timeout <seconds>`: Timeout for masscan scans (1-3600, default: 300)
-  - User is prompted to extend timeout interactively if timeout is reached
-  - Falls back to basic port scan if user declines or retry fails
-- `--dns-timeout <seconds>`: DNS lookup timeout (1-60, default: 5)
-- `--whois-timeout <seconds>`: WHOIS lookup timeout (1-300, default: 15)
-- `--no-whois`: Disable WHOIS lookups in reports
-- `--json-only`: Write JSON reports only (skip TXT/CSV)
-- `--no-json`: Disable JSON report output
-
-### Checkpoint and Resume Options
-
-- `--checkpoint-interval <seconds>`: Autosave checkpoint interval (default: 30; 0 disables)
-- `--resume <checkpoint_json>`: Resume a prior scan from a checkpoint JSON file
-
-## Scan Mode Combinations
-
-### Valid Combinations
-
+### Rapid Host Discovery
 ```bash
-# Default (no scanning flags)
+# Scan a network range using masscan and basic service detection
 python pdive++.py -t 192.168.1.0/24
-
-# Masscan only (fast scan)
-python pdive++.py -t 192.168.1.0/24 --masscan
-
-# Nmap with masscan (detailed enumeration)
-python pdive++.py -t 192.168.1.0/24 --nmap
-
-# Amass only (subdomain discovery)
-python pdive++.py -t example.com --amass
-
-# With all-ports flag
-python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
-python pdive++.py -t 192.168.1.0/24 --nmap --all-ports
 ```
 
-### Invalid Combinations
-
+### Full Reconnaissance
 ```bash
-# ERROR: Cannot use multiple scanning flags together
-python pdive++.py -t 192.168.1.0/24 --nmap --masscan
-python pdive++.py -t example.com --nmap --amass
-python pdive++.py -t example.com --masscan --amass
-
-# ERROR: Scanning flags not allowed in passive mode
-python pdive++.py -t example.com -m passive --nmap
-python pdive++.py -t example.com -m passive --masscan
-python pdive++.py -t example.com -m passive --amass
+# Passive discovery, WHOIS, and all-ports scan for a domain
+python pdive++.py -t example.com -m passive --all-ports
 ```
 
-## Report Output Controls
-
-- Default: writes TXT + CSV + JSON
-- `--json-only`: writes only JSON
-- `--no-json`: writes TXT + CSV only
-- `--json-only` and `--no-json` cannot be used together
-
-## Resumable Scans
-
-- Checkpoints are saved periodically to `scan_checkpoint.json` in the output directory.
-- Use `--checkpoint-interval <seconds>` to control autosave frequency (0 disables).
-- Resume with `--resume <checkpoint_json>` to continue from the last completed phase.
-
-Example:
-
+### Targeted Passive Discovery (OSINT Only)
 ```bash
-python pdive++.py --resume ./pdive_output/scan_checkpoint.json
+# Run ONLY Amass discovery and WHOIS (skip port scanning)
+python pdive++.py -t example.com --amass --no-scan
 ```
 
-## Mode Behavior
-
-### Active Mode
-
-Active mode performs network scanning and service enumeration. The scanning behavior depends on flags:
-
-**Default (no flags)**:
-1. Optional passive subdomain discovery (amass)
-2. Host discovery (cross-platform ping optional + port fallback)
-3. Fast port scan via masscan (fallback to built-in scanner if unavailable)
-4. Basic service identification
-5. Report generation
-
-**With `--masscan` flag**:
-1. Skips passive subdomain discovery
-2. Host discovery
-3. Fast port scan via masscan (top 1000 ports by default, all ports with `--all-ports`)
-4. Basic service identification
-5. Report generation
-
-**With `--nmap` flag**:
-1. Skips passive subdomain discovery
-2. Host discovery
-3. Fast port scan via masscan
-4. Detailed Nmap service enumeration (version detection, enhanced identification)
-5. Report generation
-
-**With `--amass` flag**:
-1. Amass subdomain discovery only
-2. Host list display
-3. Simple report generation
-4. No port scanning or service detection
-
-### Passive Mode
-
-Passive mode performs reconnaissance without active scanning:
-
-1. Passive subdomain discovery (amass)
-2. Host list display
-3. Passive reports
-
-**Note**: `--nmap`, `--masscan`, and `--amass` flags are not allowed in passive mode (passive mode already performs amass scanning by default).
-
-## Example Commands
-
-### Basic Active Scans
-
+### Combined Passive Tools
 ```bash
-# Default active scan (masscan with basic service detection)
-python pdive++.py -t 192.168.1.0/24
-
-# With ICMP ping discovery
-python pdive++.py -t 10.0.0.1 --ping
-
-# Using file input
-python pdive++.py -f targets.txt -o ./scan_results
+# Run Amass and crt.sh discovery, then perform metadata lookup
+python pdive++.py -t example.com --amass --crtsh --no-scan
 ```
 
-### Scanning Mode Examples
-
+### Advanced Troubleshooting
 ```bash
-# Fast scan with masscan (basic service enumeration)
-python pdive++.py -t 192.168.1.0/24 --masscan
-
-# Detailed scan with nmap (enhanced service detection)
-python pdive++.py -t 10.0.0.1 --nmap
-
-# Amass subdomain discovery only
-python pdive++.py -t example.com --amass
-
-# Amass with custom timeout
-python pdive++.py -t example.com --amass --amass-timeout 300
-
-# Comprehensive port scanning (all 65535 ports)
-python pdive++.py -t 10.0.0.1 --nmap --all-ports
-python pdive++.py -t 192.168.1.0/24 --masscan --all-ports
+# Use custom certificates and verbose logging
+python pdive++.py -t internal.local -k -v --ca-bundle ./internal-ca.pem
 ```
 
-### Passive Mode Examples
+## Robust Scanning & Troubleshooting
 
-```bash
-# Basic passive reconnaissance
-python pdive++.py -t example.com -m passive
+### Targeted Discovery
+You can now isolate specific passive discovery providers using `--amass`, `--dnsdumpster`, or `--crtsh`. When any of these flags are used, the tool automatically switches to `passive` mode and only executes the selected providers.
 
-# Passive with extended amass timeout
-python pdive++.py -t example.com -m passive --amass-timeout 300
-```
+### Skipping Scans
+For pure OSINT workflows, use the `--no-scan` flag. This will perform WHOIS, discovery, and DNS/rDNS metadata lookups, then immediately generate a report without attempting any connection to target ports.
 
-### Report Configuration
+### Real-time WHOIS
+PDIve++ prints WHOIS results for primary targets immediately at the start of the scan. This allows you to quickly verify domain ownership and organization details before the more time-consuming discovery phases begin.
 
-```bash
-# JSON output only
-python pdive++.py -t testphp.vulnweb.com --json-only
+### masscan Resiliency
+`masscan` can be sensitive to network interfaces on Windows. PDIve++ now includes:
+- **Automatic IP Detection**: Finds the preferred source IP for outbound traffic.
+- **Smart Retries**: If `masscan` fails to detect an interface IP, it will automatically retry using the `--source-ip` flag.
 
-# Skip JSON output
-python pdive++.py -t testphp.vulnweb.com --no-json
+### nmap Fallback
+Detailed service scanning via `nmap` is attempted if installed. If the `nmap` binary is missing from your system `PATH`, PDIve++ will gracefully fall back to its internal service identification methods, ensuring you still receive basic port/service data.
 
-# Skip WHOIS lookups
-python pdive++.py -t example.com --no-whois
+## Safety & Compliance
 
-# Custom timeouts
-python pdive++.py -t example.com --dns-timeout 3 --whois-timeout 10
-```
-
-### Performance Tuning
-
-```bash
-# Custom thread count
-python pdive++.py -f targets.txt -T 100
-
-# Custom checkpoint interval
-python pdive++.py -t example.com --checkpoint-interval 15
-
-# Extended masscan timeout for large networks
-python pdive++.py -t 192.168.0.0/16 --masscan --masscan-timeout 600
-
-# Comprehensive scan with extended timeout
-python pdive++.py -t 10.0.0.0/8 --masscan --all-ports --masscan-timeout 1800
-```
-
-### Resume and Checkpoint
-
-```bash
-# Resume interrupted scan
-python pdive++.py --resume ./scan_results/scan_checkpoint.json
-```
-
-## Interactive Timeout Extension
-
-When masscan times out during a scan, PDIve++ will prompt you with an option to extend the timeout and retry:
-
-```
-[-] Masscan timeout after 300 seconds
-Would you like to extend the timeout and retry? (y/N): y
-Enter timeout extension in seconds (e.g., 300): 300
-[*] Extending timeout by 300 seconds...
-[*] Retrying masscan with 600 second timeout...
-```
-
-**Benefits:**
-- No need to restart entire scan from scratch
-- Flexibility to adjust timeout based on network conditions
-- Automatic retry with extended timeout
-- Falls back to basic port scan if declined or retry fails
-
-**Usage Tips:**
-- Start with default timeout (300s) for most networks
-- Extend timeout for large networks or slow connections
-- Use `--masscan-timeout` to set a higher initial timeout for known large scans
-- Maximum extension value: 3600 seconds (1 hour)
-
-## Safety
-
-- The tool prompts for authorization before scanning.
-- Run only against systems you are explicitly authorized to test.
+- **Authorization Prompt**: PDIve++ will always ask for confirmation that you are authorized to scan the targets.
+- **Scope**: Ensure all targets (IPs and discovered subdomains) are within your authorized scope.
