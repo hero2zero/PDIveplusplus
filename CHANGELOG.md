@@ -5,7 +5,29 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.5] - 2026-04-07
+## [1.7.6] - 2026-05-05
+
+### Fixed
+- **Checkpoint thread was never started**: `_checkpoint_worker` and supporting state were wired up in `__init__` but `run()` never started the thread. Periodic checkpointing now works correctly; a final checkpoint is written on scan completion or interruption via a `try/finally` guard.
+- **Amass now enforces passive-only mode**: Added `-passive` flag to the `amass enum` command so it relies strictly on passive data sources and performs no active DNS resolution.
+- **DNSDumpster subdomain extraction was producing malformed results**: The previous regex used capturing groups, causing `re.findall` to return group tuples rather than full match strings. Replaced with a non-capturing pattern; results are now correctly extracted.
+- **`nmap_scan` shallow copy aliased input data**: `.copy()` on the results dict left inner port dicts shared between the copy and the original. Replaced with `copy.deepcopy`.
+- **Temp file could leak on exception in `masscan_scan`**: Initialised `target_file_path = None` before the `with` block so the `finally` clause can safely guard the cleanup.
+- **`validate_targets` swallowed unresolvable hosts silently**: Hosts that fail DNS resolution at validation time now print a yellow warning instead of disappearing without trace.
+- **`enable_amass/dnsdumpster/crtsh` defaulted to `True` in active mode**: Flags now correctly default to `False` when `--mode active` is used and no specific passive-tool flags are passed.
+- **Passive tool flags silently overrode `--mode active`**: Passing `--amass`, `--dnsdumpster`, or `--crtsh` alongside `--mode active` now prints an explicit warning before switching to passive discovery.
+- **Bare `except:` clauses throughout**: All bare `except:` blocks replaced with `except ValueError:` or `except Exception:` to avoid swallowing `KeyboardInterrupt` and `SystemExit` (affected `resolve_domain_to_ip`, `reverse_dns_lookup`, `validate_targets`, `load_targets_from_file`, `check_sudo_venv_mismatch`).
+- **`get_local_ip` socket could leak on exception**: Socket is now closed in a `finally` block.
+- **`requests.Session` not closed in `dnsdumpster_discovery`**: Session is now used as a context manager.
+- **Dead `json_only` / `no_json` fields removed from `ScannerConfig`**: These fields were never populated from CLI arguments and never read anywhere.
+
+### Changed
+- **Passive discovery providers now run concurrently**: `amass`, `dnsdumpster`, and `crtsh` are dispatched via `ThreadPoolExecutor` across all targets, reducing total passive discovery time proportionally to the number of providers and domains.
+- **`nmap_scan` now scans hosts in parallel**: Each host gets its own `PortScanner` instance and runs concurrently, replacing the previous sequential per-host loop.
+- **DNS resolution cached across phases**: `validate_targets` now returns resolved IPs alongside the validated target list. The cache is stored in `ScannerConfig.resolved_ips` and reused during the metadata lookup phase and `masscan_scan` hostname resolution, eliminating duplicate DNS queries.
+- **`TOP_1000_PORTS` pre-parsed at module load**: `TOP_1000_PORTS_LIST` (a `List[int]`) is built once when `utils.py` is imported. `port_scan` uses it directly instead of re-parsing the string on every call.
+
+
 
 ### Added
 - **Targeted Passive Discovery**: Added ability to select specific passive discovery providers.
@@ -173,6 +195,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.7.6]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.5...v1.7.6
+[1.7.5]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.4...v1.7.5
 [1.7.4]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.3...v1.7.4
 [1.7.3]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.1...v1.7.2

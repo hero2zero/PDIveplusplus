@@ -59,7 +59,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    targets = validate_targets(targets)
+    targets, resolved_ips = validate_targets(targets)
     if not targets:
         print(f"{Fore.RED}[-] Error: No valid targets found{Style.RESET_ALL}")
         sys.exit(1)
@@ -72,19 +72,23 @@ def main():
 
     # Handle passive discovery tool selection
     discovery_mode = args.mode
-    enable_amass = True
-    enable_dnsdumpster = True
-    enable_crtsh = True
-
     if args.amass or args.dnsdumpster or args.crtsh:
+        if args.mode == "active":
+            print(f"{Fore.YELLOW}[!] Passive tool flags override --mode active, switching to passive discovery{Style.RESET_ALL}")
         discovery_mode = "passive"
-        # If any specific tool is selected, only run selected tools
         enable_amass = args.amass
         enable_dnsdumpster = args.dnsdumpster
         enable_crtsh = args.crtsh
+    else:
+        # No specific tools selected — enable all when passive, none when active
+        passive = (discovery_mode == "passive")
+        enable_amass = passive
+        enable_dnsdumpster = passive
+        enable_crtsh = passive
 
     config = ScannerConfig(
         targets=targets,
+        resolved_ips=resolved_ips,
         output_dir=args.output,
         threads=args.threads,
         discovery_mode=discovery_mode,

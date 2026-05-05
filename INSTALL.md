@@ -1,6 +1,6 @@
 # PDIve++ Install Guide
 
-Current Version: v1.7.4
+Current Version: v1.7.6
 
 ## 1. Prerequisites
 
@@ -88,7 +88,7 @@ If a binary is missing, install it via your OS package manager or the official r
 ### Standard Execution (No sudo)
 
 ```bash
-python pdive++.py -t 127.0.0.1 --no-json
+python pdive++.py -t 127.0.0.1
 ```
 
 ### Execution with sudo (If Required for Raw Sockets)
@@ -121,14 +121,6 @@ python pdive++.py -t 127.0.0.1 -v --no-json
 # Look for: "Python interpreter: /path/to/python"
 ```
 
-## 7. Resume (Optional)
-
-If a scan is interrupted, resume from the last checkpoint:
-
-```bash
-python pdive++.py --resume ./pdive_output/scan_checkpoint.json
-```
-
 ## Troubleshooting
 
 ### Module Not Found Errors
@@ -140,7 +132,7 @@ This usually means you're running with the wrong Python interpreter.
 **Diagnosis:**
 ```bash
 # Check which Python you're using
-python pdive++.py -t 127.0.0.1 -v --no-json
+python pdive++.py -t 127.0.0.1 -v
 # Look for: "Python interpreter: /path/to/python"
 ```
 

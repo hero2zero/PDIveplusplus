@@ -1,17 +1,17 @@
 # PDIve++ Usage Guide
 
 `pdive++.py` is a powerful reconnaissance tool for authorized security testing.
-Current Version: v1.7.5 (Enhanced Passive Discovery)
+Current Version: v1.7.6
 
 ## Core Workflow
 
 PDIve++ follows a structured reconnaissance lifecycle:
 1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
-2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration.
-3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts.
+2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration. Passive providers run concurrently.
+3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts. IPs resolved during target validation are cached and reused here.
 4. **Fast Port Scanning**: High-speed discovery using `masscan` (optional).
-5. **Service Enumeration**: Detailed identification via `nmap` or built-in methods (optional).
-6. **Unified Reporting**: Generation of JSON and text reports.
+5. **Service Enumeration**: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods (optional).
+6. **Unified Reporting**: Generation of JSON, CSV, and text reports.
 
 ## Basic Syntax
 
@@ -32,21 +32,20 @@ python pdive++.py -f <targets_file> -v -k [options]
 ### Discovery & Scanning Features
 - `--ping`: Enable ICMP-based host discovery.
 - `--all-ports`: Scan the full TCP port range (1-65535) instead of the top 1000.
-- `--amass`: Explicitly run Amass for passive discovery (sets mode to passive).
-- `--dnsdumpster`: Explicitly run DNSDumpster for passive discovery (sets mode to passive).
-- `--crtsh`: Explicitly run crt.sh for passive discovery (sets mode to passive).
+- `--amass`: Run Amass for passive subdomain discovery (switches mode to passive; warns if `--mode active` was set).
+- `--dnsdumpster`: Run DNSDumpster for passive discovery (switches mode to passive; warns if `--mode active` was set).
+- `--crtsh`: Run crt.sh for passive discovery (switches mode to passive; warns if `--mode active` was set).
 - `--no-scan`: Skip the port scanning phase entirely.
 - `-k, --insecure`: Disable SSL verification for service checks.
 - `--ca-bundle`: Use a custom CA bundle for certificate verification.
 - `-v, --verbose`: Enable debug-level logging.
 
 ### Control & Tuning
-- `--amass-timeout`: Timeout for subdomain discovery (default: 180s).
+- `--amass-timeout`: Timeout for Amass subdomain discovery (default: 180s).
 - `--masscan-timeout`: Timeout for port scanning (default: 300s).
 - `--dns-timeout`: Timeout for DNS/rDNS resolution (default: 5s).
 - `--whois-timeout`: Timeout for WHOIS queries (default: 15s).
 - `--no-whois`: Completely disable WHOIS lookups.
-- `--no-json`: Skip JSON report generation.
 
 ## Examples
 
@@ -70,7 +69,7 @@ python pdive++.py -t example.com --amass --no-scan
 
 ### Combined Passive Tools
 ```bash
-# Run Amass and crt.sh discovery, then perform metadata lookup
+# Run Amass and crt.sh discovery concurrently, then perform metadata lookup
 python pdive++.py -t example.com --amass --crtsh --no-scan
 ```
 
@@ -83,21 +82,29 @@ python pdive++.py -t internal.local -k -v --ca-bundle ./internal-ca.pem
 ## Robust Scanning & Troubleshooting
 
 ### Targeted Discovery
-You can now isolate specific passive discovery providers using `--amass`, `--dnsdumpster`, or `--crtsh`. When any of these flags are used, the tool automatically switches to `passive` mode and only executes the selected providers.
+Isolate specific passive discovery providers using `--amass`, `--dnsdumpster`, or `--crtsh`. When any of these flags are used, the tool switches to `passive` mode and only executes the selected providers. If you also pass `--mode active`, a warning is printed before the mode is overridden.
+
+When `--mode passive` is used without specific tool flags, all three providers run.
+
+### Concurrent Passive Discovery
+All passive providers (`amass`, `dnsdumpster`, `crtsh`) are dispatched concurrently. For multiple domains, each provider/domain combination runs in its own thread up to the configured thread limit.
+
+### Amass Passive Mode
+Amass is always invoked with `-passive`, restricting it to OSINT data sources (certificate logs, APIs, DNS records) and preventing any active probing.
 
 ### Skipping Scans
 For pure OSINT workflows, use the `--no-scan` flag. This will perform WHOIS, discovery, and DNS/rDNS metadata lookups, then immediately generate a report without attempting any connection to target ports.
 
 ### Real-time WHOIS
-PDIve++ prints WHOIS results for primary targets immediately at the start of the scan. This allows you to quickly verify domain ownership and organization details before the more time-consuming discovery phases begin.
+PDIve++ prints WHOIS results for primary targets immediately at the start of the scan, allowing you to verify domain ownership before the more time-consuming discovery phases begin.
 
 ### masscan Resiliency
-`masscan` can be sensitive to network interfaces on Windows. PDIve++ now includes:
+`masscan` can be sensitive to network interfaces. PDIve++ includes:
 - **Automatic IP Detection**: Finds the preferred source IP for outbound traffic.
-- **Smart Retries**: If `masscan` fails to detect an interface IP, it will automatically retry using the `--source-ip` flag.
+- **Smart Retries**: Retries with `--source-ip` on interface detection failure, and with `--router-ip` on ARP timeout.
 
 ### nmap Fallback
-Detailed service scanning via `nmap` is attempted if installed. If the `nmap` binary is missing from your system `PATH`, PDIve++ will gracefully fall back to its internal service identification methods, ensuring you still receive basic port/service data.
+Detailed service scanning via `nmap` is attempted if installed. If the binary is missing, PDIve++ falls back to its internal service identification methods.
 
 ## Safety & Compliance
 
