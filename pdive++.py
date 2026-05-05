@@ -21,7 +21,7 @@ def main():
     
     parser.add_argument('-o', '--output', default='pdive_output', help='Output directory (default: pdive_output)')
     parser.add_argument('-T', '--threads', type=int, default=50, help='Number of threads (default: 50)')
-    parser.add_argument('-m', '--mode', choices=['active', 'passive'], default='active', help='Discovery mode (default: active)')
+    parser.add_argument('-m', '--mode', choices=['active', 'passive'], default='passive', help='Discovery mode (default: passive)')
     
     parser.add_argument('--ping', action='store_true', help='Enable ICMP ping discovery')
     parser.add_argument('--all-ports', action='store_true', help='Scan all 65535 ports')
@@ -80,11 +80,10 @@ def main():
         enable_dnsdumpster = args.dnsdumpster
         enable_crtsh = args.crtsh
     else:
-        # No specific tools selected — enable all when passive, none when active
-        passive = (discovery_mode == "passive")
-        enable_amass = passive
-        enable_dnsdumpster = passive
-        enable_crtsh = passive
+        # No specific tools selected — enable all passive tools by default
+        enable_amass = True
+        enable_dnsdumpster = True
+        enable_crtsh = True
 
     config = ScannerConfig(
         targets=targets,
