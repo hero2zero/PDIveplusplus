@@ -46,6 +46,7 @@ BANNER = fr"""{Fore.CYAN}
 @dataclass
 class ScannerConfig:
     targets: List[str]
+    resolved_ips: Optional[dict] = None
     output_dir: str = "pdive_output"
     threads: int = 50
     discovery_mode: str = "active"
@@ -223,14 +224,16 @@ def reverse_dns_lookup(ip_address, dns_timeout=5):
 
 def validate_targets(targets):
     valid = []
+    resolved_ips = {}
     for target in targets:
         try:
             ipaddress.ip_network(target, strict=False)
             valid.append(target)
         except:
             try:
-                socket.gethostbyname(target)
+                ip = socket.gethostbyname(target)
                 valid.append(target)
+                resolved_ips[target] = ip
             except:
                 pass
-    return valid
+    return valid, resolved_ips
