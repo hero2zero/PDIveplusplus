@@ -3,7 +3,7 @@ colorama>=0.4.6
 requests>=2.31.0
 urllib3>=2.0.0
 
-# Optional: detailed service enumeration (--nmap)
+# Optional: detailed service enumeration (requires nmap binary in PATH)
 python-nmap>=0.7.1
 
 # Optional: WHOIS enrichment in reports

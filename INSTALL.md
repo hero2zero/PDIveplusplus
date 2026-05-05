@@ -45,7 +45,42 @@ Ensure `~/go/bin` is in your `PATH`.
 2. Extract the archive.
 3. Move the `amass` binary to a folder in your `PATH` (e.g., `/usr/local/bin` on Linux/macOS).
 
-## 3. Create/activate a virtual environment
+## 3. Installing Nmap (Optional — Recommended)
+
+PDIve++ uses `nmap` for detailed service enumeration after the port scan phase. It requires **both** the `nmap` binary and the `python-nmap` Python module. If either is missing, the tool falls back to built-in service identification automatically.
+
+### Step 1 — Install the nmap binary
+
+**Linux (Debian/Ubuntu)**
+```bash
+sudo apt install nmap
+```
+
+**Linux (Arch)**
+```bash
+sudo pacman -S nmap
+```
+
+**macOS (Homebrew)**
+```bash
+brew install nmap
+```
+
+**Windows**
+Download and run the installer from [nmap.org/download](https://nmap.org/download.html). Ensure `nmap.exe` is added to `PATH`.
+
+### Step 2 — Install the Python module
+
+Install `python-nmap` inside your virtualenv (see Section 4):
+```bash
+pip install python-nmap
+```
+
+> **Debian/Ubuntu alternative:** `sudo apt install python3-nmap` installs version 0.6.1. This works for PDIve++'s usage but is below the `>=0.7.1` pin in `requirements.txt`. Use the pip method inside a virtualenv for the correct version.
+
+> **Note:** `nmap` scanning requires elevated privileges for raw socket access on most systems. See the sudo/virtualenv instructions in Section 5.
+
+## 4. Create/activate a virtual environment
 
 **IMPORTANT:** Always use a virtualenv to avoid dependency issues.
 
@@ -65,7 +100,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-## 4. Install Python dependencies
+## 5. Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -73,7 +108,7 @@ pip install -r requirements.txt
 
 **Note:** The `python-whois` package is NOT the same as the `whois` CLI tool from `apt`. Installing `apt install whois` does not provide the Python module.
 
-## 5. Verify optional binaries in PATH
+## 6. Verify optional binaries in PATH
 
 ```bash
 amass -version
@@ -83,7 +118,7 @@ nmap --version
 
 If a binary is missing, install it via your OS package manager or the official repository.
 
-## 6. Run
+## 7. Run
 
 ### Standard Execution (No sudo)
 
@@ -149,7 +184,7 @@ python pdive++.py -t 127.0.0.1 -v
 ### Other Issues
 
 - `requests module not available`: run `pip install -r requirements.txt` in your active virtualenv
-- `nmap module not available`: install `python-nmap` and ensure `nmap` binary is installed
+- `nmap module not available`: install `python-nmap` inside your virtualenv (`pip install python-nmap`) **and** ensure the `nmap` binary is installed (see Section 3). Both are required — missing either triggers the fallback.
 - `Amass not found in PATH`: Follow the instructions in Section 2 above.
 - `Masscan not found in PATH`: install `masscan` or let tool fall back to built-in scanner
 - Windows (masscan): ensure `masscan.exe` is in `PATH` and run PowerShell as Administrator if raw socket scans fail

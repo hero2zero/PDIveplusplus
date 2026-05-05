@@ -103,8 +103,14 @@ PDIve++ prints WHOIS results for primary targets immediately at the start of the
 - **Automatic IP Detection**: Finds the preferred source IP for outbound traffic.
 - **Smart Retries**: Retries with `--source-ip` on interface detection failure, and with `--router-ip` on ARP timeout.
 
-### nmap Fallback
-Detailed service scanning via `nmap` is attempted if installed. If the binary is missing, PDIve++ falls back to its internal service identification methods.
+### nmap Service Enumeration
+PDIve++ automatically runs `nmap -Pn -sV` for service enumeration after the port scan phase — no extra flag is needed. This requires both the `python-nmap` Python module and the `nmap` binary in `PATH`. If either is missing, PDIve++ falls back to its built-in service identification and prints:
+
+```
+[-] Nmap module not available, using basic identification
+```
+
+To resolve: install both dependencies (see `INSTALL.md` Section 3), then re-run using the virtualenv interpreter. On Linux/macOS, `nmap` scanning requires `sudo` for raw socket access — use `sudo ./venv/bin/python pdive++.py` rather than `sudo python3`.
 
 ## Safety & Compliance
 
