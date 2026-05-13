@@ -107,13 +107,15 @@ class PDIve:
                 "ports": {}
             }
 
-        # 4. Scanning
-        if self.config.enable_scan and self.scan_state["live_hosts"]:
+        # 4. Scanning (active mode only — port and nmap service scans are skipped in passive mode)
+        if self.config.discovery_mode != "active":
+            print(f"\n{Fore.CYAN}[*] Passive mode: skipping port and nmap service scans (use -m active to enable).{Style.RESET_ALL}")
+        elif self.config.enable_scan and self.scan_state["live_hosts"]:
             port_results = self.scanner.port_scan(self.scan_state["live_hosts"])
 
             # Enumerate services with nmap
             final_results = self.scanner.nmap_scan(port_results)
-            
+
             # Update results
             for host, ports in final_results.items():
                 if host in self.results["hosts"]:

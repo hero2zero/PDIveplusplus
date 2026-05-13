@@ -11,14 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`-p / --ports` flag**: Scan a specific list of ports or ranges (e.g., `-p 80,443` or `-p 8000-9000`). Mutually exclusive with `--all-ports`.
 - `parse_port_spec()` helper in `lib/utils.py` for validating and expanding port specifications.
 
-### Removed
-- **Masscan integration removed**: The `masscan_scan()` method, `--masscan-timeout` flag, and all related fallback/retry logic have been removed. Port scanning now uses the built-in TCP scanner exclusively. Service enumeration via `nmap` is unchanged.
-- Unused imports (`subprocess`, `shutil`, `tempfile`, `ipaddress`, `json`, `get_local_ip`, `get_default_gateway`) cleaned up from `lib/scanning.py`.
-
 ### Changed
+- **Passive is now the default mode**: `pdive++.py` runs in `-m passive` unless `-m active` is passed. In passive mode, WHOIS, passive OSINT discovery (Amass / DNSDumpster / crt.sh), and DNS/rDNS metadata lookups all execute, but the port scan and nmap service enumeration phases are skipped. Pass `-m active` to enable them.
+- `PDIve.run()` gates the scanning phase on `discovery_mode == "active"`; passive runs no longer perform port or nmap service scans regardless of `--no-scan`.
 - `ScannerConfig` gains a `ports: Optional[List[int]]` field and drops `masscan_timeout`.
 - `Scanner.port_scan()` now selects ports in priority order: explicit `-p` list → `--all-ports` → top 1000 default.
 - `PDIve.run()` calls `port_scan()` directly; the previous "try masscan first" path is gone.
+
+### Removed
+- **Masscan integration removed**: The `masscan_scan()` method, `--masscan-timeout` flag, and all related fallback/retry logic have been removed. Port scanning now uses the built-in TCP scanner exclusively. Service enumeration via `nmap` is unchanged.
+- Unused imports (`subprocess`, `shutil`, `tempfile`, `ipaddress`, `json`, `get_local_ip`, `get_default_gateway`) cleaned up from `lib/scanning.py`.
 
 ## [1.7.6] - 2026-05-05
 

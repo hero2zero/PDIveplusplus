@@ -9,9 +9,11 @@ PDIve++ follows a structured reconnaissance lifecycle:
 1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
 2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration. Passive providers run concurrently.
 3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts. IPs resolved during target validation are cached and reused here.
-4. **Port Scanning**: Built-in TCP scanner runs against the top 1000 ports by default; use `-p/--ports` to target specific ports or `--all-ports` for the full range.
-5. **Service Enumeration**: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods (optional).
+4. **Port Scanning** *(active mode only)*: Built-in TCP scanner runs against the top 1000 ports by default; use `-p/--ports` to target specific ports or `--all-ports` for the full range. Skipped in passive mode (the default).
+5. **Service Enumeration** *(active mode only)*: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods. Skipped in passive mode.
 6. **Unified Reporting**: Generation of JSON, CSV, and text reports.
+
+> **Default behavior:** PDIve++ runs in **passive** mode by default. WHOIS, passive discovery (Amass / DNSDumpster / crt.sh), and DNS/rDNS metadata lookups all execute, but the port scan and nmap service enumeration phases are skipped. Pass `-m active` to enable them.
 
 ## Basic Syntax
 
@@ -27,7 +29,7 @@ python pdive++.py -f <targets_file> -v -k [options]
 - `-f, --file`: Path to a file containing targets (one per line).
 - `-o, --output`: Output directory (default: `pdive_output`).
 - `-T, --threads`: Thread count for parallel tasks (default: 50).
-- `-m, --mode`: Discovery mode (`active` or `passive`, default: `active`).
+- `-m, --mode`: Discovery mode (`active` or `passive`, default: `passive`). Passive mode skips the nmap port and service scan phases; pass `-m active` to enable them.
 
 ### Discovery & Scanning Features
 - `--ping`: Enable ICMP-based host discovery.
@@ -51,20 +53,26 @@ python pdive++.py -f <targets_file> -v -k [options]
 
 ### Rapid Host Discovery
 ```bash
-# Scan a network range with the built-in port scanner and service detection
-python pdive++.py -t 192.168.1.0/24
+# Active scan of a network range with the built-in port scanner and nmap service detection
+python pdive++.py -t 192.168.1.0/24 -m active
 ```
 
 ### Targeted Port Scan
 ```bash
 # Only check for HTTP/HTTPS on a network range
-python pdive++.py -t 192.168.1.0/24 -p 80,443
+python pdive++.py -t 192.168.1.0/24 -m active -p 80,443
 ```
 
 ### Full Reconnaissance
 ```bash
-# Passive discovery, WHOIS, and all-ports scan for a domain
-python pdive++.py -t example.com -m passive --all-ports
+# Passive discovery, WHOIS, and all-ports nmap scan for a domain
+python pdive++.py -t example.com -m active --all-ports
+```
+
+### Default Passive Recon
+```bash
+# Passive default: WHOIS + Amass/DNSDumpster/crt.sh + DNS metadata, no port/service scans
+python pdive++.py -t example.com
 ```
 
 ### Targeted Passive Discovery (OSINT Only)
@@ -99,19 +107,21 @@ All passive providers (`amass`, `dnsdumpster`, `crtsh`) are dispatched concurren
 Amass is always invoked with `-passive`, restricting it to OSINT data sources (certificate logs, APIs, DNS records) and preventing any active probing.
 
 ### Skipping Scans
-For pure OSINT workflows, use the `--no-scan` flag. This will perform WHOIS, discovery, and DNS/rDNS metadata lookups, then immediately generate a report without attempting any connection to target ports.
+PDIve++ runs in passive mode by default, which already skips the port scanning and nmap service enumeration phases. For an active scan that *also* skips port scanning (e.g. when you only want active host discovery), pass `--no-scan` alongside `-m active`.
 
 ### Real-time WHOIS
 PDIve++ prints WHOIS results for primary targets immediately at the start of the scan, allowing you to verify domain ownership before the more time-consuming discovery phases begin.
 
 ### nmap Service Enumeration
-PDIve++ automatically runs `nmap -Pn -sV` for service enumeration after the port scan phase — no extra flag is needed. This requires both the `python-nmap` Python module and the `nmap` binary in `PATH`. If either is missing, PDIve++ falls back to its built-in service identification and prints:
+When run with `-m active`, PDIve++ automatically performs a port scan and then runs `nmap -Pn -sV` for service enumeration — no extra flag is needed. This requires both the `python-nmap` Python module and the `nmap` binary in `PATH`. If either is missing, PDIve++ falls back to its built-in service identification and prints:
 
 ```
 [-] Nmap module not available, using basic identification
 ```
 
 To resolve: install both dependencies (see `INSTALL.md` Section 3), then re-run using the virtualenv interpreter. On Linux/macOS, `nmap` scanning requires `sudo` for raw socket access — use `sudo ./venv/bin/python pdive++.py` rather than `sudo python3`.
+
+In passive mode (the default), the port scan and nmap service scan are not run at all, regardless of whether `nmap` is installed.
 
 ## Safety & Compliance
 

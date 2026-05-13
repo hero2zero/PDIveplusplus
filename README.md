@@ -8,6 +8,7 @@ Current Version: v1.8.0
 PDIve++ has been refactored into a modular Python package for better maintainability and extensibility. It orchestrates multiple discovery and scanning tools into a unified workflow.
 
 ### Features
+- **Passive by Default**: PDIve++ runs in `passive` mode unless `-m active` is specified. Passive mode performs WHOIS, OSINT discovery (Amass/DNSDumpster/crt.sh), and DNS metadata lookups but skips the nmap port and service scan phases. Use `-m active` to enable port and service scans.
 - **Passive-Only Amass**: Amass runs with `-passive` enforced, relying entirely on OSINT data sources.
 - **Concurrent Passive Discovery**: `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
 - **Parallel Nmap Service Scanning**: Hosts are scanned concurrently rather than sequentially.
@@ -57,8 +58,11 @@ source venv/bin/activate           # Linux/macOS
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Run the tool
+# 3. Run the tool (passive mode by default — OSINT discovery only, no port/service scans)
 python pdive++.py -t example.com
+
+# Or run an active scan (adds port scanning + nmap service enumeration)
+python pdive++.py -t example.com -m active
 ```
 
 ### Privileged Scans
