@@ -94,25 +94,29 @@ class Scanner:
 
             try:
                 nm.scan(hosts=host, ports=port_list, arguments="-Pn -sV")
-                for scanned_host in nm.all_hosts():
-                    for protocol in nm[scanned_host].all_protocols():
-                        for port in nm[scanned_host][protocol].keys():
-                            port_info = nm[scanned_host][protocol][port]
-                            service = port_info.get('name', 'unknown')
-                            product = port_info.get('product', '')
-                            version = port_info.get('version', '')
-                            
-                            details = f"{service}"
-                            if product: details += f" ({product} {version})".strip()
-                            
-                            if str(port) in updated_results[host]:
-                                updated_results[host][str(port)]["service"] = details
-                                print(f"{Fore.GREEN}[+] Nmap service: {host}:{port} -> {details}{Style.RESET_ALL}")
             except Exception as e:
-                print(f"{Fore.RED}[-] Nmap scan failed for {host}: {e}{Style.RESET_ALL}")
-            finally:
                 progress_stop.set()
                 progress_thread.join()
+                print(f"{Fore.RED}[-] Nmap scan failed for {host}: {e}{Style.RESET_ALL}")
+                continue
+
+            progress_stop.set()
+            progress_thread.join()
+
+            for scanned_host in nm.all_hosts():
+                for protocol in nm[scanned_host].all_protocols():
+                    for port in nm[scanned_host][protocol].keys():
+                        port_info = nm[scanned_host][protocol][port]
+                        service = port_info.get('name', 'unknown')
+                        product = port_info.get('product', '')
+                        version = port_info.get('version', '')
+
+                        details = f"{service}"
+                        if product: details += f" ({product} {version})".strip()
+
+                        if str(port) in updated_results[host]:
+                            updated_results[host][str(port)]["service"] = details
+                            print(f"{Fore.GREEN}[+] Nmap service: {host}:{port} -> {details}{Style.RESET_ALL}")
         
         return updated_results
 

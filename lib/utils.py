@@ -147,6 +147,7 @@ def _show_progress_bar(stop_event, message):
         bar = '=' * (filled - 1) + '>' + ' ' * (30 - filled) if filled > 0 else '>' + ' ' * 29
         print(f"\r{Fore.CYAN}[*] {message} [{bar}] {progress:>5.1f}% ({int(elapsed)}s){Style.RESET_ALL}", end='', flush=True)
         time.sleep(0.3)
+    print()
 
 def load_targets_from_file(file_path):
     targets = []
