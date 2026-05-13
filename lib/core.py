@@ -109,9 +109,8 @@ class PDIve:
 
         # 4. Scanning
         if self.config.enable_scan and self.scan_state["live_hosts"]:
-            # Try masscan first
-            port_results = self.scanner.masscan_scan(self.scan_state["live_hosts"])
-            
+            port_results = self.scanner.port_scan(self.scan_state["live_hosts"])
+
             # Enumerate services with nmap
             final_results = self.scanner.nmap_scan(port_results)
             

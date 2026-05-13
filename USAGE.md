@@ -1,7 +1,7 @@
 # PDIve++ Usage Guide
 
 `pdive++.py` is a powerful reconnaissance tool for authorized security testing.
-Current Version: v1.7.6
+Current Version: v1.8.0
 
 ## Core Workflow
 
@@ -9,7 +9,7 @@ PDIve++ follows a structured reconnaissance lifecycle:
 1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
 2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration. Passive providers run concurrently.
 3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts. IPs resolved during target validation are cached and reused here.
-4. **Fast Port Scanning**: High-speed discovery using `masscan` (optional).
+4. **Port Scanning**: Built-in TCP scanner runs against the top 1000 ports by default; use `-p/--ports` to target specific ports or `--all-ports` for the full range.
 5. **Service Enumeration**: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods (optional).
 6. **Unified Reporting**: Generation of JSON, CSV, and text reports.
 
@@ -31,6 +31,7 @@ python pdive++.py -f <targets_file> -v -k [options]
 
 ### Discovery & Scanning Features
 - `--ping`: Enable ICMP-based host discovery.
+- `-p, --ports`: Comma-separated ports or ranges to scan (e.g., `-p 80,443` or `-p 80,8000-9000`). Mutually exclusive with `--all-ports`.
 - `--all-ports`: Scan the full TCP port range (1-65535) instead of the top 1000.
 - `--amass`: Run Amass for passive subdomain discovery (switches mode to passive; warns if `--mode active` was set).
 - `--dnsdumpster`: Run DNSDumpster for passive discovery (switches mode to passive; warns if `--mode active` was set).
@@ -42,7 +43,6 @@ python pdive++.py -f <targets_file> -v -k [options]
 
 ### Control & Tuning
 - `--amass-timeout`: Timeout for Amass subdomain discovery (default: 180s).
-- `--masscan-timeout`: Timeout for port scanning (default: 300s).
 - `--dns-timeout`: Timeout for DNS/rDNS resolution (default: 5s).
 - `--whois-timeout`: Timeout for WHOIS queries (default: 15s).
 - `--no-whois`: Completely disable WHOIS lookups.
@@ -51,8 +51,14 @@ python pdive++.py -f <targets_file> -v -k [options]
 
 ### Rapid Host Discovery
 ```bash
-# Scan a network range using masscan and basic service detection
+# Scan a network range with the built-in port scanner and service detection
 python pdive++.py -t 192.168.1.0/24
+```
+
+### Targeted Port Scan
+```bash
+# Only check for HTTP/HTTPS on a network range
+python pdive++.py -t 192.168.1.0/24 -p 80,443
 ```
 
 ### Full Reconnaissance
@@ -97,11 +103,6 @@ For pure OSINT workflows, use the `--no-scan` flag. This will perform WHOIS, dis
 
 ### Real-time WHOIS
 PDIve++ prints WHOIS results for primary targets immediately at the start of the scan, allowing you to verify domain ownership before the more time-consuming discovery phases begin.
-
-### masscan Resiliency
-`masscan` can be sensitive to network interfaces. PDIve++ includes:
-- **Automatic IP Detection**: Finds the preferred source IP for outbound traffic.
-- **Smart Retries**: Retries with `--source-ip` on interface detection failure, and with `--router-ip` on ARP timeout.
 
 ### nmap Service Enumeration
 PDIve++ automatically runs `nmap -Pn -sV` for service enumeration after the port scan phase — no extra flag is needed. This requires both the `python-nmap` Python module and the `nmap` binary in `PATH`. If either is missing, PDIve++ falls back to its built-in service identification and prints:

@@ -1,19 +1,13 @@
 import os
 import sys
 import socket
-import ipaddress
 import threading
-import subprocess
-import shutil
-import json
-import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional, Union
 
 from .utils import (
-    Fore, Style, HAS_REQUESTS, HAS_NMAP, HAS_WHOIS, VERSION, 
-    ScannerConfig, TOP_1000_PORTS, _show_progress_bar, get_local_ip,
-    get_default_gateway
+    Fore, Style, HAS_REQUESTS, HAS_NMAP, HAS_WHOIS, VERSION,
+    ScannerConfig, TOP_1000_PORTS, _show_progress_bar
 )
 
 class Scanner:
@@ -23,9 +17,12 @@ class Scanner:
     def port_scan(self, hosts: List[str]) -> Dict[str, Dict[str, Any]]:
         """Perform basic TCP port scanning"""
         print(f"\n{Fore.YELLOW}[+] Starting Port Scanning...{Style.RESET_ALL}")
-        
-        if self.config.all_ports:
-            ports_to_scan = range(1, 65536)
+
+        if self.config.ports:
+            ports_to_scan = list(self.config.ports)
+            print(f"{Fore.CYAN}[*] Scanning {len(ports_to_scan)} specified port(s): {','.join(str(p) for p in ports_to_scan)}{Style.RESET_ALL}")
+        elif self.config.all_ports:
+            ports_to_scan = list(range(1, 65536))
             print(f"{Fore.CYAN}[*] Scanning all 65535 ports{Style.RESET_ALL}")
         else:
             ports_to_scan = []
@@ -61,114 +58,10 @@ class Scanner:
                     if result:
                         open_ports.append(result)
                         print(f"{Fore.GREEN}[+] Open port found: {host}:{result}{Style.RESET_ALL}")
-            
+
             scan_results[host] = {str(port): {"state": "open", "service": ""} for port in open_ports}
-        
+
         return scan_results
-
-    def masscan_scan(self, hosts: List[str]) -> Dict[str, Dict[str, Any]]:
-        """Perform fast port scanning using masscan"""
-        print(f"\n{Fore.YELLOW}[+] Starting Fast Port Scan (masscan)...{Style.RESET_ALL}")
-        
-        masscan_path = os.path.expanduser('~/go/bin/masscan')
-        if not os.path.exists(masscan_path):
-            masscan_path = shutil.which('masscan')
-
-        if not masscan_path:
-            print(f"{Fore.RED}[-] Masscan not found, falling back to basic port scan{Style.RESET_ALL}")
-            return self.port_scan(hosts)
-
-        # Basic privilege check
-        is_root = False
-        if hasattr(os, 'geteuid'):
-            is_root = os.geteuid() == 0
-        
-        if not is_root and not sys.platform.startswith('win'):
-            print(f"{Fore.YELLOW}[!] Not running as root - masscan requires sudo or capabilities{Style.RESET_ALL}")
-            return self.port_scan(hosts)
-
-        port_range = "1-65535" if self.config.all_ports else TOP_1000_PORTS
-        
-        resolved_hosts = []
-        ip_to_hostname = {}
-        for host in hosts:
-            try:
-                ipaddress.ip_address(host)
-                resolved_hosts.append(host)
-                ip_to_hostname[host] = host
-            except ValueError:
-                try:
-                    ip = socket.gethostbyname(host)
-                    resolved_hosts.append(ip)
-                    ip_to_hostname[ip] = host
-                except socket.gaierror:
-                    continue
-
-        if not resolved_hosts:
-            return self.port_scan(hosts)
-
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as target_file:
-            for ip in resolved_hosts:
-                target_file.write(f"{ip}\n")
-            target_file_path = target_file.name
-
-        cmd = [
-            masscan_path, '-iL', target_file_path, '-p', port_range,
-            '--rate', '1000', '--output-format', 'list', '--output-filename', '-'
-        ]
-        if not is_root and not sys.platform.startswith('win'):
-            cmd.insert(0, 'sudo')
-
-        masscan_results = {}
-        progress_stop = threading.Event()
-        progress_thread = threading.Thread(target=_show_progress_bar, args=(progress_stop, "Masscan port scan in progress"), daemon=True)
-        progress_thread.start()
-
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.masscan_timeout)
-            
-            # Stage 1 Retry: Interface IP detection failure
-            if result.returncode != 0 and "failed to detect IP of interface" in result.stderr:
-                local_ip = get_local_ip()
-                if local_ip:
-                    print(f"{Fore.YELLOW}[!] Masscan failed to detect interface IP. Retrying with --source-ip {local_ip}...{Style.RESET_ALL}")
-                    cmd = cmd + ["--source-ip", local_ip]
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.masscan_timeout)
-
-            # Stage 2 Retry: ARP timeout / Router MAC resolution failure (Common on Windows)
-            if result.returncode != 0 and "ARP timed-out" in result.stderr:
-                gateway_ip = get_default_gateway()
-                if gateway_ip:
-                    print(f"{Fore.YELLOW}[!] Masscan encountered ARP timeout. Retrying with --router-ip {gateway_ip}...{Style.RESET_ALL}")
-                    retry_cmd = cmd + ["--router-ip", gateway_ip]
-                    result = subprocess.run(retry_cmd, capture_output=True, text=True, timeout=self.config.masscan_timeout)
-
-            if result.returncode == 0:
-                for line in result.stdout.strip().split('\n'):
-                    if line.strip() and not line.startswith('#'):
-                        parts = line.split()
-                        if len(parts) >= 4 and parts[0] == 'open' and parts[1] == 'tcp':
-                            port, ip = parts[2], parts[3]
-                            host = ip_to_hostname.get(ip, ip)
-                            if host not in masscan_results:
-                                masscan_results[host] = {}
-                            masscan_results[host][port] = {"state": "open", "service": ""}
-                            print(f"{Fore.GREEN}[+] Masscan found: {host}:{port}{Style.RESET_ALL}")
-            else:
-                print(f"{Fore.RED}[-] Masscan failed with exit code {result.returncode}{Style.RESET_ALL}")
-                if result.stderr:
-                    print(f"{Fore.YELLOW}[!] Masscan error: {result.stderr.strip()}{Style.RESET_ALL}")
-                return self.port_scan(hosts)
-        except subprocess.TimeoutExpired:
-            print(f"{Fore.RED}[-] Masscan timed out, falling back to basic port scan{Style.RESET_ALL}")
-            return self.port_scan(hosts)
-        finally:
-            progress_stop.set()
-            progress_thread.join()
-            if os.path.exists(target_file_path):
-                os.unlink(target_file_path)
-
-        return masscan_results
 
     def nmap_scan(self, scan_results: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Perform detailed Nmap scan for service enumeration"""

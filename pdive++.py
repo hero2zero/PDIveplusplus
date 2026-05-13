@@ -5,8 +5,8 @@ import os
 import logging
 from lib.utils import (
     VERSION, Fore, Style, BANNER, ScannerConfig, logger,
-    detect_virtualenv, check_sudo_venv_mismatch, 
-    load_targets_from_file, validate_targets
+    detect_virtualenv, check_sudo_venv_mismatch,
+    load_targets_from_file, validate_targets, parse_port_spec
 )
 from lib.core import PDIve
 
@@ -24,13 +24,16 @@ def main():
     parser.add_argument('-m', '--mode', choices=['active', 'passive'], default='passive', help='Discovery mode (default: passive)')
     
     parser.add_argument('--ping', action='store_true', help='Enable ICMP ping discovery')
-    parser.add_argument('--all-ports', action='store_true', help='Scan all 65535 ports')
+
+    port_group = parser.add_mutually_exclusive_group()
+    port_group.add_argument('-p', '--ports', help='Comma-separated ports or ranges to scan (e.g., 80,443 or 8000-9000)')
+    port_group.add_argument('--all-ports', action='store_true', help='Scan all 65535 ports')
+
     parser.add_argument('--amass', action='store_true', help='Run Amass discovery')
     parser.add_argument('--dnsdumpster', action='store_true', help='Run DNSDumpster discovery')
     parser.add_argument('--crtsh', action='store_true', help='Run crt.sh discovery')
     parser.add_argument('--no-scan', action='store_true', help='Skip port scanning phase')
     parser.add_argument('--amass-timeout', type=int, default=180, help='Amass timeout in seconds')
-    parser.add_argument('--masscan-timeout', type=int, default=300, help='Masscan timeout in seconds')
     parser.add_argument('--dns-timeout', type=int, default=5, help='DNS timeout in seconds')
     parser.add_argument('--whois-timeout', type=int, default=15, help='WHOIS timeout in seconds')
     parser.add_argument('--no-whois', action='store_true', help='Disable WHOIS lookups')
@@ -64,6 +67,17 @@ def main():
         print(f"{Fore.RED}[-] Error: No valid targets found{Style.RESET_ALL}")
         sys.exit(1)
 
+    selected_ports = None
+    if args.ports:
+        try:
+            selected_ports = parse_port_spec(args.ports)
+        except ValueError as e:
+            print(f"{Fore.RED}[-] Error: Invalid --ports value: {e}{Style.RESET_ALL}")
+            sys.exit(1)
+        if not selected_ports:
+            print(f"{Fore.RED}[-] Error: --ports produced no valid ports{Style.RESET_ALL}")
+            sys.exit(1)
+
     print(f"{Fore.RED}WARNING: Authorized security testing only!{Style.RESET_ALL}")
     response = input(f"Do you have authorization to scan {len(targets)} targets? (y/N): ")
     if response.lower() != 'y':
@@ -93,8 +107,8 @@ def main():
         discovery_mode=discovery_mode,
         enable_ping=args.ping,
         all_ports=args.all_ports,
+        ports=selected_ports,
         amass_timeout=args.amass_timeout,
-        masscan_timeout=args.masscan_timeout,
         dns_timeout=args.dns_timeout,
         whois_timeout=args.whois_timeout,
         enable_whois=not args.no_whois,

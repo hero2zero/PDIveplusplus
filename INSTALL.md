@@ -1,6 +1,6 @@
 # PDIve++ Install Guide
 
-Current Version: v1.7.6
+Current Version: v1.8.0
 
 ## 1. Prerequisites
 
@@ -10,7 +10,6 @@ Current Version: v1.7.6
 
 Required/Optional external tools:
 - `amass` (Highly Recommended: passive subdomain discovery)
-- `masscan` (Optional: high-speed port scan)
 - `nmap` binary (Optional: used by `python-nmap` for detailed service enumeration)
 
 ## 2. Installing Amass
@@ -112,7 +111,6 @@ pip install -r requirements.txt
 
 ```bash
 amass -version
-masscan --version
 nmap --version
 ```
 
@@ -128,7 +126,7 @@ python pdive++.py -t 127.0.0.1
 
 ### Execution with sudo (If Required for Raw Sockets)
 
-Some scanning modes (masscan, nmap) may require elevated privileges for raw socket access.
+Some scanning modes (nmap) may require elevated privileges for raw socket access.
 
 **❌ WRONG - Don't use system Python with sudo:**
 ```bash
@@ -186,8 +184,6 @@ python pdive++.py -t 127.0.0.1 -v
 - `requests module not available`: run `pip install -r requirements.txt` in your active virtualenv
 - `nmap module not available`: install `python-nmap` inside your virtualenv (`pip install python-nmap`) **and** ensure the `nmap` binary is installed (see Section 3). Both are required — missing either triggers the fallback.
 - `Amass not found in PATH`: Follow the instructions in Section 2 above.
-- `Masscan not found in PATH`: install `masscan` or let tool fall back to built-in scanner
-- Windows (masscan): ensure `masscan.exe` is in `PATH` and run PowerShell as Administrator if raw socket scans fail
 - Windows (nmap): install Nmap for Windows and ensure `nmap.exe` is in `PATH`
 - On restricted environments, raw-socket scans may require elevated privileges or capabilities
 

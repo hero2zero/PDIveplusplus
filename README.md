@@ -1,7 +1,7 @@
 # PDIve++
 
 PDIve++ is a modular CLI tool for authorized network reconnaissance and discovery workflows.
-Current Version: v1.7.6
+Current Version: v1.8.0
 
 ## Project Overview
 
@@ -11,14 +11,14 @@ PDIve++ has been refactored into a modular Python package for better maintainabi
 - **Passive-Only Amass**: Amass runs with `-passive` enforced, relying entirely on OSINT data sources.
 - **Concurrent Passive Discovery**: `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
 - **Parallel Nmap Service Scanning**: Hosts are scanned concurrently rather than sequentially.
-- **DNS Resolution Caching**: Hostnames resolved during target validation are reused across metadata lookup and masscan phases — no duplicate queries.
+- **DNS Resolution Caching**: Hostnames resolved during target validation are reused across metadata lookup and scanning phases — no duplicate queries.
 - **Targeted Passive Discovery**: Isolate specific OSINT tools with `--amass`, `--dnsdumpster`, or `--crtsh`.
+- **Flexible Port Selection**: Scan a specific port list with `-p/--ports`, the full TCP range with `--all-ports`, or the top 1000 ports by default.
 - **Selective Scanning**: Skip the port scanning phase for pure discovery/OSINT workflows with `--no-scan`.
 - **Modular Architecture**: Logic is separated into cohesive modules (`core`, `discovery`, `scanning`, `reporting`, `utils`).
 - **Real-time WHOIS**: WHOIS lookups for primary targets are performed and displayed at the start of the scan.
 - **Checkpoint Support**: Periodic checkpoints are saved during scanning and written on exit, enabling post-scan review of partial results.
-- **Robust masscan Resiliency**: Automatic local IP detection and `--source-ip` / `--router-ip` retries.
-- **Graceful Fallbacks**: Missing `nmap` or `masscan` binaries fall back to built-in scanning methods.
+- **Graceful Fallbacks**: Missing `nmap` falls back to built-in service identification.
 - **Type Safety**: Core modules include comprehensive type hints.
 
 ## Quick Start
@@ -63,7 +63,7 @@ python pdive++.py -t example.com
 
 ### Privileged Scans
 
-Some modes (`masscan`, `nmap`) require elevated privileges. Always use the virtualenv's Python interpreter when using `sudo`:
+Some modes (`nmap`) require elevated privileges. Always use the virtualenv's Python interpreter when using `sudo`:
 
 ```bash
 sudo ./venv/bin/python pdive++.py -t 192.168.1.0/24

@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("pdive")
 
 # Version constant
-VERSION = "1.7.5"
+VERSION = "1.8.0"
 
 # Dependency flags
 try:
@@ -52,8 +52,8 @@ class ScannerConfig:
     discovery_mode: str = "active"
     enable_ping: bool = False
     all_ports: bool = False
+    ports: Optional[List[int]] = None
     amass_timeout: int = 180
-    masscan_timeout: int = 300
     enable_amass: bool = True
     enable_dnsdumpster: bool = True
     enable_crtsh: bool = True
@@ -237,3 +237,27 @@ def validate_targets(targets):
             except:
                 pass
     return valid, resolved_ips
+
+def parse_port_spec(spec: str) -> List[int]:
+    """Parse a port specification like '80,443' or '80,8000-9000' into a sorted list of unique ints."""
+    ports = set()
+    for raw in spec.split(','):
+        part = raw.strip()
+        if not part:
+            continue
+        if '-' in part:
+            start_str, end_str = part.split('-', 1)
+            start, end = int(start_str), int(end_str)
+            if start > end:
+                start, end = end, start
+            for p in range(start, end + 1):
+                if 1 <= p <= 65535:
+                    ports.add(p)
+                else:
+                    raise ValueError(f"port {p} out of range (1-65535)")
+        else:
+            p = int(part)
+            if not 1 <= p <= 65535:
+                raise ValueError(f"port {p} out of range (1-65535)")
+            ports.add(p)
+    return sorted(ports)
