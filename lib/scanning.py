@@ -2,12 +2,13 @@ import os
 import sys
 import socket
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional, Union
 
 from .utils import (
     Fore, Style, HAS_REQUESTS, HAS_NMAP, HAS_WHOIS, VERSION,
-    ScannerConfig, TOP_1000_PORTS, _show_progress_bar
+    ScannerConfig, TOP_1000_PORTS,
 )
 
 class Scanner:
@@ -87,21 +88,33 @@ class Scanner:
             
             port_list = ','.join(ports.keys())
             print(f"{Fore.CYAN}[*] Nmap service scan on {host} ports: {port_list}{Style.RESET_ALL}")
-            
-            progress_stop = threading.Event()
-            progress_thread = threading.Thread(target=_show_progress_bar, args=(progress_stop, f"Nmap scanning {host}"), daemon=True)
+
+            stop_progress = threading.Event()
+
+            def _progress():
+                sys.stdout.write(f"{Fore.CYAN}[*] Scanning")
+                sys.stdout.flush()
+                while not stop_progress.wait(2):
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
+                sys.stdout.write(f"{Style.RESET_ALL}\n")
+                sys.stdout.flush()
+
+            progress_thread = threading.Thread(target=_progress, daemon=True)
             progress_thread.start()
 
+            scan_error = None
             try:
                 nm.scan(hosts=host, ports=port_list, arguments="-Pn -sV")
             except Exception as e:
-                progress_stop.set()
+                scan_error = e
+            finally:
+                stop_progress.set()
                 progress_thread.join()
-                print(f"{Fore.RED}[-] Nmap scan failed for {host}: {e}{Style.RESET_ALL}")
-                continue
 
-            progress_stop.set()
-            progress_thread.join()
+            if scan_error:
+                print(f"{Fore.RED}[-] Nmap scan failed for {host}: {scan_error}{Style.RESET_ALL}")
+                continue
 
             for scanned_host in nm.all_hosts():
                 for protocol in nm[scanned_host].all_protocols():
