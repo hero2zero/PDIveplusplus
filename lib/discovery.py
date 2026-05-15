@@ -53,12 +53,13 @@ class Discovery:
         except ValueError:
             return target.lower().strip()
 
-    def host_discovery(self) -> Dict[str, Any]:
+    def host_discovery(self, targets: Optional[List[str]] = None) -> Dict[str, Any]:
         """Perform host discovery using optional ping and port-based detection"""
         print(f"\n{Fore.YELLOW}[+] Starting Host Discovery...{Style.RESET_ALL}")
 
+        scan_targets = targets if targets is not None else self.config.targets
         all_hosts = []
-        for target in self.config.targets:
+        for target in scan_targets:
             try:
                 network = ipaddress.ip_network(target, strict=False)
                 hosts = list(network.hosts()) if network.num_addresses > 1 else [network.network_address]

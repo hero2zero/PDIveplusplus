@@ -91,7 +91,15 @@ class PDIve:
             discovered = self.discovery.passive_discovery()
             self.scan_state["live_hosts"] = list(discovered)
         else:
-            discovery_results = self.discovery.host_discovery()
+            # Active mode: run passive subdomain enumeration first, then probe everything
+            combined_targets = list(self.config.targets)
+            if self.config.enable_amass or self.config.enable_dnsdumpster or self.config.enable_crtsh:
+                discovered = self.discovery.passive_discovery()
+                if discovered:
+                    print(f"{Fore.CYAN}[*] Passive enumeration discovered {len(discovered)} subdomain(s); including in active host discovery{Style.RESET_ALL}")
+                combined_targets.extend(h for h in discovered if h not in combined_targets)
+
+            discovery_results = self.discovery.host_discovery(combined_targets)
             self.scan_state["live_hosts"] = discovery_results["live_hosts"]
             self.results["unresponsive_hosts"] = discovery_results["unresponsive_count"]
 
