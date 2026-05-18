@@ -138,26 +138,46 @@ class Discovery:
         return discovery_results
 
     def passive_discovery(self) -> Set[str]:
-        """Perform passive discovery using multiple providers"""
+        """Perform passive discovery.
+
+        Domain targets are enumerated via amass/dnsdumpster/crt.sh.
+        IP/CIDR targets are passed through directly so they receive metadata
+        lookups (rDNS, WHOIS) and appear in reports.
+        """
         print(f"\n{Fore.YELLOW}[+] Starting Passive Discovery...{Style.RESET_ALL}")
-        discovered_hosts = set()
+        discovered_hosts: Set[str] = set()
+        domain_targets: List[str] = []
+        ip_hosts: List[str] = []
 
         for target in self.config.targets:
             domain = self.extract_domain(target)
-            if not domain:
+            if domain:
+                domain_targets.append(domain)
                 continue
+            try:
+                network = ipaddress.ip_network(target, strict=False)
+                hosts = list(network.hosts()) if network.num_addresses > 1 else [network.network_address]
+                ip_hosts.extend(str(h) for h in hosts)
+            except ValueError:
+                ip_hosts.append(target)
 
+        if ip_hosts:
+            print(f"{Fore.CYAN}[*] Including {len(ip_hosts)} IP target(s) in passive results{Style.RESET_ALL}")
+            discovered_hosts.update(ip_hosts)
+
+        if not domain_targets:
+            print(f"{Fore.CYAN}[*] No domain targets — skipping amass/dnsdumpster/crt.sh{Style.RESET_ALL}")
+            return discovered_hosts
+
+        for domain in domain_targets:
             print(f"{Fore.CYAN}[*] Performing passive discovery on domain: {domain}{Style.RESET_ALL}")
-            
-            # Provider: Amass
+
             if self.config.enable_amass:
                 discovered_hosts.update(self.amass_discovery(domain))
-            
-            # Provider: DNSDumpster
+
             if self.config.enable_dnsdumpster:
                 discovered_hosts.update(self.dnsdumpster_discovery(domain))
-            
-            # Provider: crt.sh
+
             if self.config.enable_crtsh:
                 discovered_hosts.update(self.crtsh_discovery(domain))
 
