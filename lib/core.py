@@ -94,7 +94,7 @@ class PDIve:
             # Active mode: run passive subdomain enumeration first, then probe everything
             combined_targets = list(self.config.targets)
             if self.config.enable_amass or self.config.enable_dnsdumpster or self.config.enable_crtsh:
-                discovered = self.discovery.passive_discovery()
+                discovered = self.discovery.passive_discovery(restrict_amass_to_domain=True)
                 if discovered:
                     print(f"{Fore.CYAN}[*] Passive enumeration discovered {len(discovered)} subdomain(s); including in active host discovery{Style.RESET_ALL}")
                 combined_targets.extend(h for h in discovered if h not in combined_targets)
