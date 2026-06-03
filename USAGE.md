@@ -1,7 +1,7 @@
 # PDIve++ Usage Guide
 
 `pdive++.py` is a powerful reconnaissance tool for authorized security testing.
-Current Version: v1.8.0
+Current Version: v1.8.5
 
 ## Core Workflow
 
@@ -13,7 +13,7 @@ PDIve++ follows a structured reconnaissance lifecycle:
 5. **Service Enumeration** *(active mode only)*: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods. Skipped in passive mode.
 6. **Unified Reporting**: Generation of JSON, CSV, and text reports.
 
-> **Default behavior:** PDIve++ runs in **passive** mode by default. WHOIS, passive discovery (Amass / DNSDumpster / crt.sh), and DNS/rDNS metadata lookups all execute, but the port scan and nmap service enumeration phases are skipped. Pass `-m active` to enable them.
+> **Default behavior:** PDIve++ runs in **passive** mode by default. WHOIS, passive discovery (Amass / DNSDumpster / crt.sh), and DNS/rDNS metadata lookups all execute, but the port scan and nmap service enumeration phases are skipped. Pass `-m active` to enable them. For constrained workflows, use `--strict-passive` or `--strict-active`.
 
 ## Basic Syntax
 
@@ -30,6 +30,8 @@ python pdive++.py -f <targets_file> -v -k [options]
 - `-o, --output`: Output directory (default: `pdive_output`).
 - `-T, --threads`: Thread count for parallel tasks (default: 50).
 - `-m, --mode`: Discovery mode (`active` or `passive`, default: `passive`). Passive mode skips the nmap port and service scan phases; pass `-m active` to enable them.
+- `--strict-passive`: Run passive-only discovery without WHOIS or Amass, and skip active scanning.
+- `--strict-active`: Run active-only discovery/scanning against supplied targets; disables WHOIS and all passive discovery providers.
 
 ### Discovery & Scanning Features
 - `--ping`: Enable ICMP-based host discovery.
@@ -38,6 +40,9 @@ python pdive++.py -f <targets_file> -v -k [options]
 - `--amass`: Run Amass for passive subdomain discovery (switches mode to passive; warns if `--mode active` was set).
 - `--dnsdumpster`: Run DNSDumpster for passive discovery (switches mode to passive; warns if `--mode active` was set).
 - `--crtsh`: Run crt.sh for passive discovery (switches mode to passive; warns if `--mode active` was set).
+- `--no-amass`: Disable Amass discovery.
+- `--no-dnsdumpster`: Disable DNSDumpster discovery.
+- `--no-crtsh`: Disable crt.sh discovery.
 - `--no-scan`: Skip the port scanning phase entirely.
 - `-k, --insecure`: Disable SSL verification for service checks.
 - `--ca-bundle`: Use a custom CA bundle for certificate verification.
@@ -75,6 +80,18 @@ python pdive++.py -t example.com -m active --all-ports
 python pdive++.py -t example.com
 ```
 
+### Strict Passive Recon
+```bash
+# Passive-only discovery without WHOIS, Amass, or active scanning
+python pdive++.py -t example.com --strict-passive
+```
+
+### Strict Active Recon
+```bash
+# Active-only discovery/scanning against supplied targets; no WHOIS or passive providers
+python pdive++.py -t example.com --strict-active
+```
+
 ### Targeted Passive Discovery (OSINT Only)
 ```bash
 # Run ONLY Amass discovery and WHOIS (skip port scanning)
@@ -85,6 +102,12 @@ python pdive++.py -t example.com --amass --no-scan
 ```bash
 # Run Amass and crt.sh discovery concurrently, then perform metadata lookup
 python pdive++.py -t example.com --amass --crtsh --no-scan
+```
+
+### Disable Specific Passive Providers
+```bash
+# Run default passive discovery without Amass
+python pdive++.py -t example.com --no-amass
 ```
 
 ### Advanced Troubleshooting
@@ -99,6 +122,15 @@ python pdive++.py -t internal.local -k -v --ca-bundle ./internal-ca.pem
 Isolate specific passive discovery providers using `--amass`, `--dnsdumpster`, or `--crtsh`. When any of these flags are used, the tool switches to `passive` mode and only executes the selected providers. If you also pass `--mode active`, a warning is printed before the mode is overridden.
 
 When `--mode passive` is used without specific tool flags, all three providers run.
+
+Provider-specific disable flags (`--no-amass`, `--no-dnsdumpster`, `--no-crtsh`) remove individual providers from the default provider set. For example, `--no-amass` keeps DNSDumpster and crt.sh enabled while skipping Amass.
+
+### Strict Modes
+`--strict-passive` forces passive mode, disables WHOIS, disables Amass, and skips active port/service scanning. DNSDumpster and crt.sh remain enabled so the scan can still collect passive certificate/DNS-derived host data.
+
+`--strict-active` forces active mode, disables WHOIS, and disables Amass, DNSDumpster, and crt.sh. Active host discovery and port/service scanning remain enabled unless `--no-scan` is also passed.
+
+Strict mode conflicts are rejected early. For example, `--strict-active --amass`, `--strict-active --mode passive`, and `--strict-passive --mode active` all fail with a parser error.
 
 ### Concurrent Passive Discovery
 All passive providers (`amass`, `dnsdumpster`, `crtsh`) are dispatched concurrently. For multiple domains, each provider/domain combination runs in its own thread up to the configured thread limit.

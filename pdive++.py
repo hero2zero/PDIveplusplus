@@ -21,7 +21,18 @@ def main():
     
     parser.add_argument('-o', '--output', default='pdive_output', help='Output directory (default: pdive_output)')
     parser.add_argument('-T', '--threads', type=int, default=50, help='Number of threads (default: 50)')
-    parser.add_argument('-m', '--mode', choices=['active', 'passive'], default='passive', help='Discovery mode (default: passive)')
+    parser.add_argument('-m', '--mode', choices=['active', 'passive'], default=None, help='Discovery mode (default: passive)')
+    strict_group = parser.add_mutually_exclusive_group()
+    strict_group.add_argument(
+        '--strict-passive',
+        action='store_true',
+        help='Run passive-only discovery without WHOIS or Amass; skips active scanning'
+    )
+    strict_group.add_argument(
+        '--strict-active',
+        action='store_true',
+        help='Run active-only discovery/scanning against supplied targets; disables WHOIS and passive discovery providers'
+    )
     
     parser.add_argument('--ping', action='store_true', help='Enable ICMP ping discovery')
 
@@ -32,6 +43,9 @@ def main():
     parser.add_argument('--amass', action='store_true', help='Run Amass discovery')
     parser.add_argument('--dnsdumpster', action='store_true', help='Run DNSDumpster discovery')
     parser.add_argument('--crtsh', action='store_true', help='Run crt.sh discovery')
+    parser.add_argument('--no-amass', action='store_true', help='Disable Amass discovery')
+    parser.add_argument('--no-dnsdumpster', action='store_true', help='Disable DNSDumpster discovery')
+    parser.add_argument('--no-crtsh', action='store_true', help='Disable crt.sh discovery')
     parser.add_argument('--no-scan', action='store_true', help='Skip port scanning phase')
     parser.add_argument('--amass-timeout', type=int, default=180, help='Amass timeout in seconds')
     parser.add_argument('--dns-timeout', type=int, default=5, help='DNS timeout in seconds')
@@ -43,6 +57,21 @@ def main():
     parser.add_argument('--version', action='version', version=f'PDIve++ {VERSION}')
 
     args = parser.parse_args()
+
+    if args.amass and args.no_amass:
+        parser.error("--amass and --no-amass cannot be used together")
+    if args.dnsdumpster and args.no_dnsdumpster:
+        parser.error("--dnsdumpster and --no-dnsdumpster cannot be used together")
+    if args.crtsh and args.no_crtsh:
+        parser.error("--crtsh and --no-crtsh cannot be used together")
+    if args.strict_active and (args.amass or args.dnsdumpster or args.crtsh):
+        parser.error("--strict-active cannot be combined with passive provider flags")
+    if args.strict_passive and args.amass:
+        parser.error("--strict-passive cannot be combined with --amass")
+    if args.strict_active and args.mode == "passive":
+        parser.error("--strict-active cannot be combined with --mode passive")
+    if args.strict_passive and args.mode == "active":
+        parser.error("--strict-passive cannot be combined with --mode active")
 
     if args.verbose:
         logger.setLevel(logging.DEBUG)
@@ -85,7 +114,7 @@ def main():
         sys.exit(1)
 
     # Handle passive discovery tool selection
-    discovery_mode = args.mode
+    discovery_mode = args.mode or "passive"
     if args.amass or args.dnsdumpster or args.crtsh:
         if args.mode == "active":
             print(f"{Fore.YELLOW}[!] Passive tool flags override --mode active, switching to passive discovery{Style.RESET_ALL}")
@@ -94,10 +123,32 @@ def main():
         enable_dnsdumpster = args.dnsdumpster
         enable_crtsh = args.crtsh
     else:
-        # No specific tools selected — enable all passive tools by default
+        # No specific tools selected; enable all passive tools by default.
         enable_amass = True
         enable_dnsdumpster = True
         enable_crtsh = True
+
+    if args.no_amass:
+        enable_amass = False
+    if args.no_dnsdumpster:
+        enable_dnsdumpster = False
+    if args.no_crtsh:
+        enable_crtsh = False
+
+    enable_whois = not args.no_whois
+    enable_scan = not args.no_scan
+
+    if args.strict_passive:
+        discovery_mode = "passive"
+        enable_whois = False
+        enable_amass = False
+        enable_scan = False
+    elif args.strict_active:
+        discovery_mode = "active"
+        enable_whois = False
+        enable_amass = False
+        enable_dnsdumpster = False
+        enable_crtsh = False
 
     config = ScannerConfig(
         targets=targets,
@@ -111,11 +162,11 @@ def main():
         amass_timeout=args.amass_timeout,
         dns_timeout=args.dns_timeout,
         whois_timeout=args.whois_timeout,
-        enable_whois=not args.no_whois,
+        enable_whois=enable_whois,
         enable_amass=enable_amass,
         enable_dnsdumpster=enable_dnsdumpster,
         enable_crtsh=enable_crtsh,
-        enable_scan=not args.no_scan,
+        enable_scan=enable_scan,
         ca_bundle=args.ca_bundle,
         insecure=args.insecure
     )

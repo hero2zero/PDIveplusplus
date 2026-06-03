@@ -1,7 +1,7 @@
 # PDIve++
 
 PDIve++ is a modular CLI tool for authorized network reconnaissance and discovery workflows.
-Current Version: v1.8.0
+Current Version: v1.8.5
 
 ## Project Overview
 
@@ -9,11 +9,12 @@ PDIve++ has been refactored into a modular Python package for better maintainabi
 
 ### Features
 - **Passive by Default**: PDIve++ runs in `passive` mode unless `-m active` is specified. Passive mode performs WHOIS, OSINT discovery (Amass/DNSDumpster/crt.sh), and DNS metadata lookups but skips the nmap port and service scan phases. Use `-m active` to enable port and service scans.
+- **Strict Scan Presets**: Use `--strict-passive` for passive discovery without WHOIS, Amass, or active scanning. Use `--strict-active` for active-only discovery/scanning against supplied targets without WHOIS or passive providers.
 - **Passive-Only Amass**: Amass runs with `-passive` enforced, relying entirely on OSINT data sources.
 - **Concurrent Passive Discovery**: `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
 - **Parallel Nmap Service Scanning**: Hosts are scanned concurrently rather than sequentially.
 - **DNS Resolution Caching**: Hostnames resolved during target validation are reused across metadata lookup and scanning phases — no duplicate queries.
-- **Targeted Passive Discovery**: Isolate specific OSINT tools with `--amass`, `--dnsdumpster`, or `--crtsh`.
+- **Targeted Passive Discovery**: Isolate or disable specific OSINT tools with `--amass`, `--dnsdumpster`, `--crtsh`, `--no-amass`, `--no-dnsdumpster`, or `--no-crtsh`.
 - **Flexible Port Selection**: Scan a specific port list with `-p/--ports`, the full TCP range with `--all-ports`, or the top 1000 ports by default.
 - **Selective Scanning**: Skip the port scanning phase for pure discovery/OSINT workflows with `--no-scan`.
 - **Modular Architecture**: Logic is separated into cohesive modules (`core`, `discovery`, `scanning`, `reporting`, `utils`).
@@ -63,6 +64,12 @@ python pdive++.py -t example.com
 
 # Or run an active scan (adds port scanning + nmap service enumeration)
 python pdive++.py -t example.com -m active
+
+# Strict passive: no WHOIS, no Amass, no port/service scans
+python pdive++.py -t example.com --strict-passive
+
+# Strict active: active-only discovery/scanning against supplied targets
+python pdive++.py -t example.com --strict-active
 ```
 
 ### Privileged Scans

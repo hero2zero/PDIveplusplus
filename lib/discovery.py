@@ -137,79 +137,36 @@ class Discovery:
         }
         return discovery_results
 
-    def passive_discovery(self, restrict_amass_to_domain: bool = False) -> Set[str]:
-        """Perform passive discovery.
-
-        Domain targets are enumerated via amass/dnsdumpster/crt.sh.
-        IP/CIDR targets are passed through directly so they receive metadata
-        lookups (rDNS, WHOIS) and appear in reports.
-
-        When ``restrict_amass_to_domain`` is True, amass results are filtered to
-        only hostnames matching the queried domain (used in active mode so port
-        and service scans don't run on unrelated infrastructure like CDNs).
-        """
+    def passive_discovery(self) -> Set[str]:
+        """Perform passive discovery using multiple providers"""
         print(f"\n{Fore.YELLOW}[+] Starting Passive Discovery...{Style.RESET_ALL}")
-        discovered_hosts: Set[str] = set()
-        domain_targets: List[str] = []
-        ip_hosts: List[str] = []
+        discovered_hosts = set()
 
         for target in self.config.targets:
             domain = self.extract_domain(target)
-            if domain:
-                domain_targets.append(domain)
+            if not domain:
                 continue
-            try:
-                network = ipaddress.ip_network(target, strict=False)
-                hosts = list(network.hosts()) if network.num_addresses > 1 else [network.network_address]
-                ip_hosts.extend(str(h) for h in hosts)
-            except ValueError:
-                ip_hosts.append(target)
 
-        if ip_hosts:
-            print(f"{Fore.CYAN}[*] Including {len(ip_hosts)} IP target(s) in passive results{Style.RESET_ALL}")
-            discovered_hosts.update(ip_hosts)
-
-        if not domain_targets:
-            print(f"{Fore.CYAN}[*] No domain targets — skipping amass/dnsdumpster/crt.sh{Style.RESET_ALL}")
-            return discovered_hosts
-
-        for domain in domain_targets:
             print(f"{Fore.CYAN}[*] Performing passive discovery on domain: {domain}{Style.RESET_ALL}")
-
+            
+            # Provider: Amass
             if self.config.enable_amass:
-                discovered_hosts.update(
-                    self.amass_discovery(
-                        domain,
-                        restrict_to_domain=restrict_amass_to_domain,
-                        active=(self.config.discovery_mode == "active"),
-                    )
-                )
-
+                discovered_hosts.update(self.amass_discovery(domain))
+            
+            # Provider: DNSDumpster
             if self.config.enable_dnsdumpster:
                 discovered_hosts.update(self.dnsdumpster_discovery(domain))
-
+            
+            # Provider: crt.sh
             if self.config.enable_crtsh:
                 discovered_hosts.update(self.crtsh_discovery(domain))
 
         return discovered_hosts
 
-    def amass_discovery(self, domain: str, restrict_to_domain: bool = False, active: bool = False) -> Set[str]:
-        """Use amass for subdomain enumeration.
-
-        When ``restrict_to_domain`` is True, only hostnames matching ``domain``
-        (the domain itself or a subdomain of it) are returned. Amass can surface
-        unrelated infrastructure such as CDN providers; this filter keeps active-
-        mode port and service scans confined to the target domain.
-
-        When ``active`` is True, amass is run with ``-active -brute`` to perform
-        zone transfers, certificate name grabs, and DNS brute-forcing of common
-        subdomain names. Passive sources alone often miss live subdomains like
-        ``mail2`` that exist in DNS but aren't published in CT logs or passive
-        DNS feeds.
-        """
+    def amass_discovery(self, domain: str) -> Set[str]:
+        """Use amass for passive subdomain enumeration"""
         discovered_hosts = set()
-        mode_label = "active+brute" if active else "passive"
-        print(f"{Fore.CYAN}[*] Running amass ({mode_label}) on {domain}...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[*] Running amass on {domain}...{Style.RESET_ALL}")
 
         amass_path = os.path.expanduser('~/go/bin/amass')
         if not os.path.exists(amass_path):
@@ -220,8 +177,6 @@ class Discovery:
             return discovered_hosts
 
         cmd = [amass_path, 'enum', '-d', domain]
-        if active:
-            cmd.extend(['-active', '-brute'])
         progress_stop = threading.Event()
         timeout_msg = f"Amass scan in progress (timeout: {self.config.amass_timeout}s)" if self.config.amass_timeout else "Amass scan in progress"
         
@@ -255,16 +210,10 @@ class Discovery:
             print()
 
         if stdout:
-            domain_lc = domain.lower().strip()
             for line in stdout.strip().split('\n'):
                 if line.strip():
                     hostname = line.strip().split()[0]
                     if self._is_valid_hostname(hostname):
-                        if restrict_to_domain:
-                            host_lc = hostname.lower()
-                            if host_lc != domain_lc and not host_lc.endswith('.' + domain_lc):
-                                print(f"{Fore.YELLOW}[!] Amass filtered (off-domain): {hostname}{Style.RESET_ALL}")
-                                continue
                         discovered_hosts.add(hostname)
                         print(f"{Fore.GREEN}[+] Amass discovered: {hostname}{Style.RESET_ALL}")
 

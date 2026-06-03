@@ -5,6 +5,21 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.5] - 2026-06-03
+
+### Added
+- **Strict passive mode**: Added `--strict-passive` for passive-only discovery without WHOIS, Amass, or active port/service scanning. DNSDumpster and crt.sh remain enabled.
+- **Strict active mode**: Added `--strict-active` for active-only discovery/scanning against supplied targets. This disables WHOIS and all passive providers (`amass`, `dnsdumpster`, `crtsh`).
+- **Granular passive provider disable flags**: Added `--no-amass`, `--no-dnsdumpster`, and `--no-crtsh`.
+
+### Changed
+- `--mode` now defaults internally to `None` and resolves to `passive` after strict-mode and provider selection logic, preserving passive-by-default behavior while allowing strict presets to validate cleanly.
+- Updated `README.md`, `USAGE.md`, and `INSTALL.md` to document strict mode behavior, provider disable flags, and Amass requirements for default vs strict workflows.
+- Bumped project version to `v1.8.5`.
+
+### Fixed
+- Contradictory CLI combinations now fail early with parser errors, including `--strict-active --amass`, `--strict-active --mode passive`, and `--strict-passive --mode active`.
+
 ## [1.8.0] - 2026-05-13
 
 ### Added
@@ -177,6 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.8.5]: https://github.com/yourusername/PDIveplusplus/compare/v1.8.0...v1.8.5
 [1.8.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.6...v1.8.0
 [1.7.6]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.5...v1.7.6
 [1.7.5]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.4...v1.7.5

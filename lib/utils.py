@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("pdive")
 
 # Version constant
-VERSION = "1.8.0"
+VERSION = "1.8.5"
 
 # Dependency flags
 try:
