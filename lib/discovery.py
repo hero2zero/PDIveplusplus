@@ -10,8 +10,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Set, Dict, Any, Optional
 
 from .utils import (
-    Fore, Style, HAS_REQUESTS, VERSION, ScannerConfig, 
-    _show_progress, resolve_domain_to_ip, reverse_dns_lookup
+    Fore, Style, HAS_REQUESTS, VERSION, ScannerConfig,
+    _show_progress, resolve_domain_to_ip, reverse_dns_lookup, registrable_domain
 )
 
 class Discovery:
@@ -137,29 +137,52 @@ class Discovery:
         }
         return discovery_results
 
+    def _run_providers(self, domain: str, discovered_hosts: Set[str], queried_domains: Set[str]) -> None:
+        """Run the enabled passive providers against a domain, querying each domain only once."""
+        if not domain or domain in queried_domains:
+            return
+        queried_domains.add(domain)
+
+        print(f"{Fore.CYAN}[*] Performing passive discovery on domain: {domain}{Style.RESET_ALL}")
+
+        # Provider: Amass
+        if self.config.enable_amass:
+            discovered_hosts.update(self.amass_discovery(domain))
+
+        # Provider: DNSDumpster
+        if self.config.enable_dnsdumpster:
+            discovered_hosts.update(self.dnsdumpster_discovery(domain))
+
+        # Provider: crt.sh
+        if self.config.enable_crtsh:
+            discovered_hosts.update(self.crtsh_discovery(domain))
+
     def passive_discovery(self) -> Set[str]:
         """Perform passive discovery using multiple providers"""
         print(f"\n{Fore.YELLOW}[+] Starting Passive Discovery...{Style.RESET_ALL}")
         discovered_hosts = set()
+        queried_domains = set()
 
         for target in self.config.targets:
             domain = self.extract_domain(target)
-            if not domain:
+            if domain:
+                self._run_providers(domain, discovered_hosts, queried_domains)
                 continue
 
-            print(f"{Fore.CYAN}[*] Performing passive discovery on domain: {domain}{Style.RESET_ALL}")
-            
-            # Provider: Amass
-            if self.config.enable_amass:
-                discovered_hosts.update(self.amass_discovery(domain))
-            
-            # Provider: DNSDumpster
-            if self.config.enable_dnsdumpster:
-                discovered_hosts.update(self.dnsdumpster_discovery(domain))
-            
-            # Provider: crt.sh
-            if self.config.enable_crtsh:
-                discovered_hosts.update(self.crtsh_discovery(domain))
+            # Target is an IP: try reverse DNS (PTR) so passive mode still yields results.
+            if not self.config.enable_ptr:
+                continue
+
+            ptr = reverse_dns_lookup(target, self.config.dns_timeout)
+            if ptr == "N/A":
+                print(f"{Fore.YELLOW}[!] No PTR record for {target}, skipping{Style.RESET_ALL}")
+                continue
+
+            print(f"{Fore.GREEN}[+] PTR for {target}: {ptr}{Style.RESET_ALL}")
+            if self._is_valid_hostname(ptr):
+                discovered_hosts.add(ptr)
+
+            self._run_providers(registrable_domain(ptr), discovered_hosts, queried_domains)
 
         return discovered_hosts
 

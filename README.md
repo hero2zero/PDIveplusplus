@@ -1,7 +1,7 @@
 # PDIve++
 
 PDIve++ is a modular CLI tool for authorized network reconnaissance and discovery workflows.
-Current Version: v1.8.5
+Current Version: v1.9.0
 
 ## Project Overview
 
@@ -10,6 +10,7 @@ PDIve++ has been refactored into a modular Python package for better maintainabi
 ### Features
 - **Passive by Default**: PDIve++ runs in `passive` mode unless `-m active` is specified. Passive mode performs WHOIS, OSINT discovery (Amass/DNSDumpster/crt.sh), and DNS metadata lookups but skips the nmap port and service scan phases. Use `-m active` to enable port and service scans.
 - **Strict Scan Presets**: Use `--strict-passive` for passive discovery without WHOIS, Amass, or active scanning. Use `--strict-active` for active-only discovery/scanning against supplied targets without WHOIS or passive providers.
+- **PTR Expansion of IP Targets**: In passive mode, bare IP targets are reverse-DNS resolved; the PTR hostname is recorded as a discovered host and its registrable domain is fed to the passive providers (each registrable domain queried only once). This lets an IP-only target list yield real OSINT results. Disable with `--no-ptr`.
 - **Passive-Only Amass**: Amass runs with `-passive` enforced, relying entirely on OSINT data sources.
 - **Concurrent Passive Discovery**: `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
 - **Parallel Nmap Service Scanning**: Hosts are scanned concurrently rather than sequentially.

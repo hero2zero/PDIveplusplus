@@ -5,6 +5,19 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-06-16
+
+### Added
+- **PTR expansion of IP targets in passive mode**: Bare IP targets are now reverse-DNS resolved during passive discovery. The PTR hostname is recorded as a discovered host, and its registrable domain is passed to the enabled passive providers (Amass / DNSDumpster / crt.sh). This makes an IP-only target list yield real OSINT results instead of nothing. Previously, `passive_discovery()` skipped any target that was not a domain.
+- **`--no-ptr` flag**: Disables PTR expansion of IP targets in passive mode. PTR expansion is on by default, including under `--strict-passive`.
+- **`registrable_domain()` helper** in `lib/utils.py`: Dependency-free reduction of a hostname to its registrable domain (last two labels, or last three for a known set of multi-part public suffixes such as `co.uk`, `com.au`). Returns `None` for IPs and single-label inputs.
+- **`enable_ptr` field** on `ScannerConfig` (default `True`), wired from `--no-ptr`.
+
+### Changed
+- `Discovery.passive_discovery()` refactored: the per-provider calls are extracted into a `_run_providers()` helper that tracks already-queried domains, so many IPs resolving to the same registrable domain trigger only a single set of provider queries.
+- Updated `README.md` and `USAGE.md` to document PTR expansion, the `--no-ptr` flag, and IP-only passive workflows.
+- Bumped project version to `v1.9.0`.
+
 ## [1.8.5] - 2026-06-03
 
 ### Added
@@ -192,6 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.9.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.8.5...v1.9.0
 [1.8.5]: https://github.com/yourusername/PDIveplusplus/compare/v1.8.0...v1.8.5
 [1.8.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.6...v1.8.0
 [1.7.6]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.5...v1.7.6

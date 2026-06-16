@@ -1,13 +1,13 @@
 # PDIve++ Usage Guide
 
 `pdive++.py` is a powerful reconnaissance tool for authorized security testing.
-Current Version: v1.8.5
+Current Version: v1.9.0
 
 ## Core Workflow
 
 PDIve++ follows a structured reconnaissance lifecycle:
 1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
-2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration. Passive providers run concurrently.
+2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration. Passive providers run concurrently. In passive mode, bare IP targets are reverse-DNS (PTR) resolved and their registrable domains are fed to the passive providers (see *PTR Expansion of IP Targets* below).
 3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts. IPs resolved during target validation are cached and reused here.
 4. **Port Scanning** *(active mode only)*: Built-in TCP scanner runs against the top 1000 ports by default; use `-p/--ports` to target specific ports or `--all-ports` for the full range. Skipped in passive mode (the default).
 5. **Service Enumeration** *(active mode only)*: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods. Skipped in passive mode.
@@ -43,6 +43,7 @@ python pdive++.py -f <targets_file> -v -k [options]
 - `--no-amass`: Disable Amass discovery.
 - `--no-dnsdumpster`: Disable DNSDumpster discovery.
 - `--no-crtsh`: Disable crt.sh discovery.
+- `--no-ptr`: Disable reverse-DNS (PTR) expansion of IP targets in passive mode.
 - `--no-scan`: Skip the port scanning phase entirely.
 - `-k, --insecure`: Disable SSL verification for service checks.
 - `--ca-bundle`: Use a custom CA bundle for certificate verification.
@@ -110,6 +111,15 @@ python pdive++.py -t example.com --amass --crtsh --no-scan
 python pdive++.py -t example.com --no-amass
 ```
 
+### Passive Recon of an IP-Only Target List
+```bash
+# Reverse-DNS each IP, then run passive providers against the discovered domains
+python pdive++.py -f ip_targets.txt --strict-passive
+
+# Same input, but skip PTR expansion (IP targets contribute nothing in passive mode)
+python pdive++.py -f ip_targets.txt --strict-passive --no-ptr
+```
+
 ### Advanced Troubleshooting
 ```bash
 # Use custom certificates and verbose logging
@@ -125,8 +135,17 @@ When `--mode passive` is used without specific tool flags, all three providers r
 
 Provider-specific disable flags (`--no-amass`, `--no-dnsdumpster`, `--no-crtsh`) remove individual providers from the default provider set. For example, `--no-amass` keeps DNSDumpster and crt.sh enabled while skipping Amass.
 
+### PTR Expansion of IP Targets
+The passive providers (Amass, DNSDumpster, crt.sh) take a domain as input, so a bare IP target has nothing to enumerate. To make passive mode useful against IP-only target lists, PDIve++ reverse-DNS (PTR) resolves each IP target in passive mode:
+
+- The PTR hostname (e.g. `host-64-202-143-139.cybera.net`) is recorded as a discovered host.
+- Its registrable domain (e.g. `cybera.net`) is derived and passed to the enabled passive providers.
+- Each registrable domain is queried only once, so a list of many IPs sharing a domain does not trigger duplicate provider queries.
+
+IPs without a PTR record are skipped with a notice. This behavior is on by default in passive mode (including `--strict-passive`) and is disabled with `--no-ptr`. It has no effect in active mode, where IP targets are probed directly.
+
 ### Strict Modes
-`--strict-passive` forces passive mode, disables WHOIS, disables Amass, and skips active port/service scanning. DNSDumpster and crt.sh remain enabled so the scan can still collect passive certificate/DNS-derived host data.
+`--strict-passive` forces passive mode, disables WHOIS, disables Amass, and skips active port/service scanning. DNSDumpster and crt.sh remain enabled so the scan can still collect passive certificate/DNS-derived host data, and PTR expansion of IP targets still runs (disable with `--no-ptr`).
 
 `--strict-active` forces active mode, disables WHOIS, and disables Amass, DNSDumpster, and crt.sh. Active host discovery and port/service scanning remain enabled unless `--no-scan` is also passed.
 

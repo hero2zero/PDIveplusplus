@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--dns-timeout', type=int, default=5, help='DNS timeout in seconds')
     parser.add_argument('--whois-timeout', type=int, default=15, help='WHOIS timeout in seconds')
     parser.add_argument('--no-whois', action='store_true', help='Disable WHOIS lookups')
+    parser.add_argument('--no-ptr', action='store_true', help='Disable reverse-DNS (PTR) expansion of IP targets in passive mode')
     parser.add_argument('--ca-bundle', help='Path to CA bundle')
     parser.add_argument('-k', '--insecure', action='store_true', help='Disable SSL verification')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
@@ -163,6 +164,7 @@ def main():
         dns_timeout=args.dns_timeout,
         whois_timeout=args.whois_timeout,
         enable_whois=enable_whois,
+        enable_ptr=not args.no_ptr,
         enable_amass=enable_amass,
         enable_dnsdumpster=enable_dnsdumpster,
         enable_crtsh=enable_crtsh,

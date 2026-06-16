@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("pdive")
 
 # Version constant
-VERSION = "1.8.5"
+VERSION = "1.9.0"
 
 # Dependency flags
 try:
@@ -63,6 +63,7 @@ class ScannerConfig:
     dns_timeout: int = 5
     whois_timeout: int = 15
     enable_whois: bool = True
+    enable_ptr: bool = True
     checkpoint_interval: int = 30
     checkpoint_path: Optional[str] = None
     ca_bundle: Optional[str] = None
@@ -222,6 +223,38 @@ def reverse_dns_lookup(ip_address, dns_timeout=5):
             socket.setdefaulttimeout(prev)
     except:
         return "N/A"
+
+# Multi-part public suffixes where the registrable domain is the last 3 labels.
+_MULTI_PART_SUFFIXES = {
+    "co.uk", "org.uk", "gov.uk", "ac.uk",
+    "com.au", "net.au", "org.au",
+    "co.nz", "co.za", "com.br",
+}
+
+def registrable_domain(hostname):
+    """Reduce a hostname to its registrable domain (e.g. host-1-2.cybera.net -> cybera.net).
+
+    Returns None if the input is not a usable domain (an IP, or fewer than 2 labels).
+    Dependency-free heuristic: last 2 labels, or last 3 for known multi-part suffixes.
+    """
+    if not hostname:
+        return None
+    name = hostname.strip().lower().rstrip('.')
+    if not name:
+        return None
+    # An IP literal has no registrable domain.
+    try:
+        ipaddress.ip_address(name)
+        return None
+    except ValueError:
+        pass
+    labels = name.split('.')
+    if len(labels) < 2:
+        return None
+    last_two = '.'.join(labels[-2:])
+    if last_two in _MULTI_PART_SUFFIXES and len(labels) >= 3:
+        return '.'.join(labels[-3:])
+    return last_two
 
 def validate_targets(targets):
     valid = []
