@@ -14,8 +14,7 @@ PDIve++ has been refactored into a modular Python package for better maintainabi
 - **Strict Scan Presets**: Use `--strict-passive` for passive discovery without WHOIS, Amass, or active scanning. Use `--strict-active` for active-only discovery/scanning against supplied targets without WHOIS or passive providers.
 - **PTR Metadata for IP Targets**: In passive mode, bare IP targets are reverse-DNS resolved and the PTR hostname is recorded as metadata on that IP. PDIve++ does **not** pivot from the PTR to its registrable domain or enumerate it — a single IP stays a single IP. Disable the lookup with `--no-ptr`.
 - **Passive-Only Amass**: Amass runs with `-passive` enforced, relying entirely on OSINT data sources.
-- **Concurrent Passive Discovery**: When enumeration is enabled, `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
-- **Parallel Nmap Service Scanning**: Hosts are scanned concurrently rather than sequentially.
+- **Multithreaded Discovery & Port Scanning**: Active host discovery (ping/port) and the built-in TCP port scan use a thread pool sized by `-T/--threads`. Note: passive providers and the nmap service scan currently run sequentially.
 - **DNS Resolution Caching**: Hostnames resolved during target validation are reused across metadata lookup and scanning phases — no duplicate queries.
 - **Flexible Port Selection**: Scan a specific port list with `-p/--ports`, the full TCP range with `--all-ports`, or the top 1000 ports by default.
 - **Selective Scanning**: Skip the port scanning phase for pure discovery/OSINT workflows with `--no-scan`.

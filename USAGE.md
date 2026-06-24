@@ -7,10 +7,10 @@ Current Version: v1.10.0
 
 PDIve++ follows a structured reconnaissance lifecycle:
 1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
-2. **Discovery**: By default a scan probes only the targets you supply. Subdomain enumeration (Amass / DNSDumpster / crt.sh) is opt-in via `-e/--enumerate` or a per-tool flag; when enabled, providers run concurrently. In active mode, ping/port host discovery probes the targets (and any enumerated subdomains). In passive mode, bare IP targets get a reverse-DNS (PTR) record as metadata only — no enumeration pivot (see *PTR Metadata for IP Targets* below).
+2. **Discovery**: By default a scan probes only the targets you supply. Subdomain enumeration (Amass / DNSDumpster / crt.sh) is opt-in via `-e/--enumerate` or a per-tool flag; when enabled, each selected provider is queried in turn. In active mode, ping/port host discovery probes the targets (and any enumerated subdomains). In passive mode, bare IP targets get a reverse-DNS (PTR) record as metadata only — no enumeration pivot (see *PTR Metadata for IP Targets* below).
 3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all targets and discovered hosts. IPs resolved during target validation are cached and reused here.
 4. **Port Scanning** *(active mode only)*: Built-in TCP scanner runs against the top 1000 ports by default; use `-p/--ports` to target specific ports or `--all-ports` for the full range. Skipped in passive mode (the default).
-5. **Service Enumeration** *(active mode only)*: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods. Skipped in passive mode.
+5. **Service Enumeration** *(active mode only)*: Detailed identification via `nmap` (one host at a time) or built-in methods. Skipped in passive mode.
 6. **Unified Reporting**: Generation of JSON, CSV, and text reports.
 
 > **Default behavior:** PDIve++ runs in **passive** mode by default and scans **only the targets you supply**. WHOIS and DNS/rDNS metadata lookups execute, but subdomain enumeration is **off** unless you pass `-e/--enumerate` (or a per-tool flag), and the port scan / nmap service enumeration phases are skipped unless you pass `-m active`. For constrained workflows, use `--strict-passive` or `--strict-active`.
@@ -108,7 +108,7 @@ python pdive++.py -t example.com --amass --no-scan
 
 ### Combined Passive Tools
 ```bash
-# Run Amass and crt.sh enumeration concurrently, then perform metadata lookup
+# Run Amass and crt.sh enumeration, then perform metadata lookup
 python pdive++.py -t example.com --amass --crtsh --no-scan
 ```
 
@@ -159,8 +159,8 @@ The PTR lookup is on by default in passive mode (including `--strict-passive`) a
 
 Strict mode conflicts are rejected early. For example, `--strict-active --amass`, `--strict-active --enumerate`, `--strict-passive --enumerate`, `--strict-active --mode passive`, and `--strict-passive --mode active` all fail with a parser error.
 
-### Concurrent Passive Discovery
-When enumeration is enabled, all selected providers (`amass`, `dnsdumpster`, `crtsh`) are dispatched concurrently. For multiple domains, each provider/domain combination runs in its own thread up to the configured thread limit.
+### Multithreading
+The built-in TCP port scan parallelizes across ports, and active host discovery (ping/port probing) parallelizes across hosts, both using a thread pool sized by `-T/--threads`. The passive providers (`amass`, `dnsdumpster`, `crtsh`) and the nmap service scan currently run sequentially, so `--threads` does not affect them.
 
 ### Amass Passive Mode
 Amass is always invoked with `-passive`, restricting it to OSINT data sources (certificate logs, APIs, DNS records) and preventing any active probing.

@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Strict-mode conflict checks now reject `--strict-active --enumerate` and `--strict-passive --enumerate`.
 
+### Documentation
+- **Corrected inaccurate concurrency claims.** Three items described as implemented in the v1.7.6 entry below were never actually present in any released source: "`nmap_scan` now scans hosts in parallel," "Passive discovery providers now run concurrently," and the `nmap_scan` `copy.deepcopy` fix. In current code the passive providers and the nmap service scan run **sequentially**, and `nmap_scan` uses a shallow `.copy()`. The `README.md` "Parallel Nmap Service Scanning" / "Concurrent Passive Discovery" feature bullets and the matching `USAGE.md` text have been rewritten to describe the parallelism that does exist (port scanning across ports; active ping/port host discovery across hosts, both bounded by `-T/--threads`). The v1.7.6 entry is left intact as a historical record; this note supersedes it.
+
 ## [1.9.0] - 2026-06-16
 
 ### Added
