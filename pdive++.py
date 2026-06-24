@@ -40,18 +40,23 @@ def main():
     port_group.add_argument('-p', '--ports', help='Comma-separated ports or ranges to scan (e.g., 80,443 or 8000-9000)')
     port_group.add_argument('--all-ports', action='store_true', help='Scan all 65535 ports')
 
-    parser.add_argument('--amass', action='store_true', help='Run Amass discovery')
-    parser.add_argument('--dnsdumpster', action='store_true', help='Run DNSDumpster discovery')
-    parser.add_argument('--crtsh', action='store_true', help='Run crt.sh discovery')
-    parser.add_argument('--no-amass', action='store_true', help='Disable Amass discovery')
-    parser.add_argument('--no-dnsdumpster', action='store_true', help='Disable DNSDumpster discovery')
-    parser.add_argument('--no-crtsh', action='store_true', help='Disable crt.sh discovery')
+    parser.add_argument(
+        '-e', '--enumerate', action='store_true',
+        help='Enable subdomain enumeration via all passive providers (Amass, DNSDumpster, crt.sh). '
+             'OFF by default: without this (or a per-tool flag below) a scan probes only the supplied targets.'
+    )
+    parser.add_argument('--amass', action='store_true', help='Enable subdomain enumeration via Amass only')
+    parser.add_argument('--dnsdumpster', action='store_true', help='Enable subdomain enumeration via DNSDumpster only')
+    parser.add_argument('--crtsh', action='store_true', help='Enable subdomain enumeration via crt.sh only')
+    parser.add_argument('--no-amass', action='store_true', help='Disable Amass (subtracts from --enumerate)')
+    parser.add_argument('--no-dnsdumpster', action='store_true', help='Disable DNSDumpster (subtracts from --enumerate)')
+    parser.add_argument('--no-crtsh', action='store_true', help='Disable crt.sh (subtracts from --enumerate)')
     parser.add_argument('--no-scan', action='store_true', help='Skip port scanning phase')
     parser.add_argument('--amass-timeout', type=int, default=180, help='Amass timeout in seconds')
     parser.add_argument('--dns-timeout', type=int, default=5, help='DNS timeout in seconds')
     parser.add_argument('--whois-timeout', type=int, default=15, help='WHOIS timeout in seconds')
     parser.add_argument('--no-whois', action='store_true', help='Disable WHOIS lookups')
-    parser.add_argument('--no-ptr', action='store_true', help='Disable reverse-DNS (PTR) expansion of IP targets in passive mode')
+    parser.add_argument('--no-ptr', action='store_true', help='Disable reverse-DNS (PTR) lookup of IP targets in passive mode')
     parser.add_argument('--ca-bundle', help='Path to CA bundle')
     parser.add_argument('-k', '--insecure', action='store_true', help='Disable SSL verification')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
@@ -65,10 +70,10 @@ def main():
         parser.error("--dnsdumpster and --no-dnsdumpster cannot be used together")
     if args.crtsh and args.no_crtsh:
         parser.error("--crtsh and --no-crtsh cannot be used together")
-    if args.strict_active and (args.amass or args.dnsdumpster or args.crtsh):
+    if args.strict_active and (args.amass or args.dnsdumpster or args.crtsh or args.enumerate):
         parser.error("--strict-active cannot be combined with passive provider flags")
-    if args.strict_passive and args.amass:
-        parser.error("--strict-passive cannot be combined with --amass")
+    if args.strict_passive and (args.amass or args.enumerate):
+        parser.error("--strict-passive cannot be combined with --amass or --enumerate")
     if args.strict_active and args.mode == "passive":
         parser.error("--strict-active cannot be combined with --mode passive")
     if args.strict_passive and args.mode == "active":
@@ -116,19 +121,20 @@ def main():
 
     # Handle passive discovery tool selection
     discovery_mode = args.mode or "passive"
-    if args.amass or args.dnsdumpster or args.crtsh:
-        if args.mode == "active":
-            print(f"{Fore.YELLOW}[!] Passive tool flags override --mode active, switching to passive discovery{Style.RESET_ALL}")
-        discovery_mode = "passive"
-        enable_amass = args.amass
-        enable_dnsdumpster = args.dnsdumpster
-        enable_crtsh = args.crtsh
-    else:
-        # No specific tools selected; enable all passive tools by default.
+
+    # Subdomain enumeration is opt-in. By default a scan probes ONLY the supplied
+    # targets (no subdomain enumeration, no cross-host fan-out). --enumerate turns
+    # on all providers; the per-tool flags enable individual providers.
+    if args.enumerate:
         enable_amass = True
         enable_dnsdumpster = True
         enable_crtsh = True
+    else:
+        enable_amass = args.amass
+        enable_dnsdumpster = args.dnsdumpster
+        enable_crtsh = args.crtsh
 
+    # --no-* flags subtract from whatever was enabled above.
     if args.no_amass:
         enable_amass = False
     if args.no_dnsdumpster:

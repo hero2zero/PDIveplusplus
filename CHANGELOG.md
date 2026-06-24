@@ -5,6 +5,24 @@ All notable changes to PDIve++ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-06-24
+
+### Changed
+- **Subdomain enumeration is now opt-in.** A scan probes only the targets supplied via `-t`/`-f`; the passive providers (Amass / DNSDumpster / crt.sh) no longer run by default. Enable them with the new `-e/--enumerate` flag (all providers) or a per-tool flag (`--amass`, `--dnsdumpster`, `--crtsh`). This fixes a single IP or domain fanning out to many unrelated hosts.
+- **Passive mode now scans the supplied targets themselves.** `PDIve.run()` seeds `live_hosts` with the supplied targets and adds enumerated hosts on top, so a passive scan reports the actual target even when enumeration is disabled. Previously `live_hosts` was populated only from discovered hosts.
+- Provider flags (`--amass`, `--dnsdumpster`, `--crtsh`) no longer force a switch to passive mode; enumeration is now independent of `--mode` and works in both passive and active scans.
+- Updated `README.md`, `USAGE.md`, and `INSTALL.md` to document opt-in enumeration, the `-e/--enumerate` flag, and PTR-as-metadata behavior.
+- Bumped project version to `v1.10.0`.
+
+### Added
+- **`-e/--enumerate` flag**: Enables subdomain enumeration via all passive providers at once. Off by default; combine with `--no-amass`/`--no-dnsdumpster`/`--no-crtsh` to subtract individual providers.
+
+### Removed
+- **PTR-to-registrable-domain pivot removed.** In passive mode a bare IP target's PTR record is now recorded as metadata only; PDIve++ no longer derives the PTR's registrable domain and runs the passive providers against it. That pivot turned a single IP into a full-domain enumeration that scanned many unrelated addresses. The `--no-ptr` flag now controls the metadata PTR lookup; the `registrable_domain()`-based fan-out path and its imports were removed from `Discovery.passive_discovery()`.
+
+### Fixed
+- Strict-mode conflict checks now reject `--strict-active --enumerate` and `--strict-passive --enumerate`.
+
 ## [1.9.0] - 2026-06-16
 
 ### Added
@@ -205,6 +223,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and fallback mechanisms
 - Authorization prompt before scanning
 
+[1.10.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.8.5...v1.9.0
 [1.8.5]: https://github.com/yourusername/PDIveplusplus/compare/v1.8.0...v1.8.5
 [1.8.0]: https://github.com/yourusername/PDIveplusplus/compare/v1.7.6...v1.8.0

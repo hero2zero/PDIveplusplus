@@ -1,5 +1,6 @@
 import os
 import json
+import ipaddress
 import threading
 import time
 from datetime import datetime
@@ -12,6 +13,14 @@ from .utils import (
 from .discovery import Discovery
 from .scanning import Scanner
 from .reporting import Reporter
+
+def _is_ip_literal(host: str) -> bool:
+    """True if host is a bare IP address (not a hostname)."""
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
 
 class PDIve:
     def __init__(self, config: ScannerConfig):
@@ -88,8 +97,14 @@ class PDIve:
 
         # 2. Discovery
         if self.config.discovery_mode == "passive":
-            discovered = self.discovery.passive_discovery()
-            self.scan_state["live_hosts"] = list(discovered)
+            # Always scan the supplied targets themselves; enumeration only adds to them.
+            live_hosts = list(self.config.targets)
+            if self.config.enable_amass or self.config.enable_dnsdumpster or self.config.enable_crtsh:
+                discovered = self.discovery.passive_discovery()
+                if discovered:
+                    print(f"{Fore.CYAN}[*] Passive enumeration discovered {len(discovered)} host(s){Style.RESET_ALL}")
+                live_hosts.extend(h for h in discovered if h not in live_hosts)
+            self.scan_state["live_hosts"] = live_hosts
         else:
             # Active mode: run passive subdomain enumeration first, then probe everything
             combined_targets = list(self.config.targets)
@@ -107,7 +122,11 @@ class PDIve:
         print(f"\n{Fore.YELLOW}[+] Performing Metadata Lookups...{Style.RESET_ALL}")
         for host in self.scan_state["live_hosts"]:
             ip = resolve_domain_to_ip(host, self.config.dns_timeout)
-            rdns = reverse_dns_lookup(ip, self.config.dns_timeout) if ip != "N/A" else "N/A"
+            # PTR (reverse DNS) for IP targets is metadata only and can be disabled with --no-ptr.
+            if ip != "N/A" and (self.config.enable_ptr or not _is_ip_literal(host)):
+                rdns = reverse_dns_lookup(ip, self.config.dns_timeout)
+            else:
+                rdns = "N/A"
             self.results["hosts"][host] = {
                 "status": "up",
                 "ip_address": ip,

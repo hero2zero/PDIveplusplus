@@ -1,21 +1,22 @@
 # PDIve++
 
 PDIve++ is a modular CLI tool for authorized network reconnaissance and discovery workflows.
-Current Version: v1.9.0
+Current Version: v1.10.0
 
 ## Project Overview
 
 PDIve++ has been refactored into a modular Python package for better maintainability and extensibility. It orchestrates multiple discovery and scanning tools into a unified workflow.
 
 ### Features
-- **Passive by Default**: PDIve++ runs in `passive` mode unless `-m active` is specified. Passive mode performs WHOIS, OSINT discovery (Amass/DNSDumpster/crt.sh), and DNS metadata lookups but skips the nmap port and service scan phases. Use `-m active` to enable port and service scans.
+- **Targets-Only by Default**: A scan probes only the targets you supply. Subdomain enumeration (Amass / DNSDumpster / crt.sh) is **opt-in** — a single IP or domain never fans out to other hosts unless you ask. Enable it with `-e/--enumerate` (all providers) or a per-tool flag.
+- **Passive by Default**: PDIve++ runs in `passive` mode unless `-m active` is specified. Passive mode performs WHOIS and DNS metadata lookups (plus subdomain enumeration when enabled) but skips the nmap port and service scan phases. Use `-m active` to enable port and service scans.
+- **Opt-in Subdomain Enumeration**: Use `-e/--enumerate` to run all passive providers, or select individually with `--amass`, `--dnsdumpster`, `--crtsh`. Subtract a provider from `--enumerate` with `--no-amass`, `--no-dnsdumpster`, or `--no-crtsh`.
 - **Strict Scan Presets**: Use `--strict-passive` for passive discovery without WHOIS, Amass, or active scanning. Use `--strict-active` for active-only discovery/scanning against supplied targets without WHOIS or passive providers.
-- **PTR Expansion of IP Targets**: In passive mode, bare IP targets are reverse-DNS resolved; the PTR hostname is recorded as a discovered host and its registrable domain is fed to the passive providers (each registrable domain queried only once). This lets an IP-only target list yield real OSINT results. Disable with `--no-ptr`.
+- **PTR Metadata for IP Targets**: In passive mode, bare IP targets are reverse-DNS resolved and the PTR hostname is recorded as metadata on that IP. PDIve++ does **not** pivot from the PTR to its registrable domain or enumerate it — a single IP stays a single IP. Disable the lookup with `--no-ptr`.
 - **Passive-Only Amass**: Amass runs with `-passive` enforced, relying entirely on OSINT data sources.
-- **Concurrent Passive Discovery**: `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
+- **Concurrent Passive Discovery**: When enumeration is enabled, `amass`, `dnsdumpster`, and `crtsh` run in parallel across all targets.
 - **Parallel Nmap Service Scanning**: Hosts are scanned concurrently rather than sequentially.
 - **DNS Resolution Caching**: Hostnames resolved during target validation are reused across metadata lookup and scanning phases — no duplicate queries.
-- **Targeted Passive Discovery**: Isolate or disable specific OSINT tools with `--amass`, `--dnsdumpster`, `--crtsh`, `--no-amass`, `--no-dnsdumpster`, or `--no-crtsh`.
 - **Flexible Port Selection**: Scan a specific port list with `-p/--ports`, the full TCP range with `--all-ports`, or the top 1000 ports by default.
 - **Selective Scanning**: Skip the port scanning phase for pure discovery/OSINT workflows with `--no-scan`.
 - **Modular Architecture**: Logic is separated into cohesive modules (`core`, `discovery`, `scanning`, `reporting`, `utils`).
@@ -60,8 +61,11 @@ source venv/bin/activate           # Linux/macOS
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Run the tool (passive mode by default — OSINT discovery only, no port/service scans)
+# 3. Run the tool (passive mode by default — scans only the supplied target, no port/service scans)
 python pdive++.py -t example.com
+
+# Enable subdomain enumeration (Amass / DNSDumpster / crt.sh) with -e
+python pdive++.py -t example.com -e
 
 # Or run an active scan (adds port scanning + nmap service enumeration)
 python pdive++.py -t example.com -m active

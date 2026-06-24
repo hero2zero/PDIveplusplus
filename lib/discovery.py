@@ -11,7 +11,7 @@ from typing import List, Set, Dict, Any, Optional
 
 from .utils import (
     Fore, Style, HAS_REQUESTS, VERSION, ScannerConfig,
-    _show_progress, resolve_domain_to_ip, reverse_dns_lookup, registrable_domain
+    _show_progress
 )
 
 class Discovery:
@@ -158,7 +158,12 @@ class Discovery:
             discovered_hosts.update(self.crtsh_discovery(domain))
 
     def passive_discovery(self) -> Set[str]:
-        """Perform passive discovery using multiple providers"""
+        """Enumerate subdomains of domain targets via the enabled passive providers.
+
+        IP targets are not expanded here: a single IP is scanned as-is, and its PTR
+        record is captured as metadata during the metadata phase (see core.py),
+        gated by --no-ptr. This avoids fanning a single IP out to a whole domain.
+        """
         print(f"\n{Fore.YELLOW}[+] Starting Passive Discovery...{Style.RESET_ALL}")
         discovered_hosts = set()
         queried_domains = set()
@@ -167,22 +172,6 @@ class Discovery:
             domain = self.extract_domain(target)
             if domain:
                 self._run_providers(domain, discovered_hosts, queried_domains)
-                continue
-
-            # Target is an IP: try reverse DNS (PTR) so passive mode still yields results.
-            if not self.config.enable_ptr:
-                continue
-
-            ptr = reverse_dns_lookup(target, self.config.dns_timeout)
-            if ptr == "N/A":
-                print(f"{Fore.YELLOW}[!] No PTR record for {target}, skipping{Style.RESET_ALL}")
-                continue
-
-            print(f"{Fore.GREEN}[+] PTR for {target}: {ptr}{Style.RESET_ALL}")
-            if self._is_valid_hostname(ptr):
-                discovered_hosts.add(ptr)
-
-            self._run_providers(registrable_domain(ptr), discovered_hosts, queried_domains)
 
         return discovered_hosts
 

@@ -1,6 +1,6 @@
 # PDIve++ Install Guide
 
-Current Version: v1.9.0
+Current Version: v1.10.0
 
 ## 1. Prerequisites
 
@@ -9,12 +9,12 @@ Current Version: v1.9.0
 - Authorized test scope and permission
 
 Required/Optional external tools:
-- `amass` (Highly recommended for default passive subdomain discovery; skipped by `--strict-passive`, `--strict-active`, or `--no-amass`)
+- `amass` (Recommended for subdomain enumeration; only used when enumeration is enabled via `-e/--enumerate` or `--amass`)
 - `nmap` binary (Optional: used by `python-nmap` for detailed service enumeration)
 
 ## 2. Installing Amass
 
-`amass` is used by the default passive discovery phase. If you see the error `[-] Amass not found in PATH`, install it with one of the methods below, or skip it with `--no-amass`, `--strict-passive`, or `--strict-active`.
+`amass` is used only when subdomain enumeration is enabled (`-e/--enumerate` or `--amass`). If you enable it and see the error `[-] Amass not found in PATH`, install it with one of the methods below, or drop it with `--no-amass` (or run enumeration via `--crtsh`/`--dnsdumpster` instead).
 
 ### Linux (Debian/Ubuntu)
 ```bash

@@ -1,19 +1,19 @@
 # PDIve++ Usage Guide
 
 `pdive++.py` is a powerful reconnaissance tool for authorized security testing.
-Current Version: v1.9.0
+Current Version: v1.10.0
 
 ## Core Workflow
 
 PDIve++ follows a structured reconnaissance lifecycle:
 1. **Primary Target Analysis**: Real-time WHOIS lookup for initial targets.
-2. **Discovery**: Active (ping/port) or Passive (Amass/DNS) subdomain/host enumeration. Passive providers run concurrently. In passive mode, bare IP targets are reverse-DNS (PTR) resolved and their registrable domains are fed to the passive providers (see *PTR Expansion of IP Targets* below).
-3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all discovered hosts. IPs resolved during target validation are cached and reused here.
+2. **Discovery**: By default a scan probes only the targets you supply. Subdomain enumeration (Amass / DNSDumpster / crt.sh) is opt-in via `-e/--enumerate` or a per-tool flag; when enabled, providers run concurrently. In active mode, ping/port host discovery probes the targets (and any enumerated subdomains). In passive mode, bare IP targets get a reverse-DNS (PTR) record as metadata only — no enumeration pivot (see *PTR Metadata for IP Targets* below).
+3. **Metadata Enrichment**: DNS and reverse-DNS resolution for all targets and discovered hosts. IPs resolved during target validation are cached and reused here.
 4. **Port Scanning** *(active mode only)*: Built-in TCP scanner runs against the top 1000 ports by default; use `-p/--ports` to target specific ports or `--all-ports` for the full range. Skipped in passive mode (the default).
 5. **Service Enumeration** *(active mode only)*: Detailed identification via `nmap` (hosts scanned in parallel) or built-in methods. Skipped in passive mode.
 6. **Unified Reporting**: Generation of JSON, CSV, and text reports.
 
-> **Default behavior:** PDIve++ runs in **passive** mode by default. WHOIS, passive discovery (Amass / DNSDumpster / crt.sh), and DNS/rDNS metadata lookups all execute, but the port scan and nmap service enumeration phases are skipped. Pass `-m active` to enable them. For constrained workflows, use `--strict-passive` or `--strict-active`.
+> **Default behavior:** PDIve++ runs in **passive** mode by default and scans **only the targets you supply**. WHOIS and DNS/rDNS metadata lookups execute, but subdomain enumeration is **off** unless you pass `-e/--enumerate` (or a per-tool flag), and the port scan / nmap service enumeration phases are skipped unless you pass `-m active`. For constrained workflows, use `--strict-passive` or `--strict-active`.
 
 ## Basic Syntax
 
@@ -37,13 +37,14 @@ python pdive++.py -f <targets_file> -v -k [options]
 - `--ping`: Enable ICMP-based host discovery.
 - `-p, --ports`: Comma-separated ports or ranges to scan (e.g., `-p 80,443` or `-p 80,8000-9000`). Mutually exclusive with `--all-ports`.
 - `--all-ports`: Scan the full TCP port range (1-65535) instead of the top 1000.
-- `--amass`: Run Amass for passive subdomain discovery (switches mode to passive; warns if `--mode active` was set).
-- `--dnsdumpster`: Run DNSDumpster for passive discovery (switches mode to passive; warns if `--mode active` was set).
-- `--crtsh`: Run crt.sh for passive discovery (switches mode to passive; warns if `--mode active` was set).
-- `--no-amass`: Disable Amass discovery.
-- `--no-dnsdumpster`: Disable DNSDumpster discovery.
-- `--no-crtsh`: Disable crt.sh discovery.
-- `--no-ptr`: Disable reverse-DNS (PTR) expansion of IP targets in passive mode.
+- `-e, --enumerate`: Enable subdomain enumeration via **all** passive providers (Amass, DNSDumpster, crt.sh). Off by default — without this (or a per-tool flag below), a scan probes only the supplied targets.
+- `--amass`: Enable subdomain enumeration via Amass only.
+- `--dnsdumpster`: Enable subdomain enumeration via DNSDumpster only.
+- `--crtsh`: Enable subdomain enumeration via crt.sh only.
+- `--no-amass`: Disable Amass (subtracts from `--enumerate`).
+- `--no-dnsdumpster`: Disable DNSDumpster (subtracts from `--enumerate`).
+- `--no-crtsh`: Disable crt.sh (subtracts from `--enumerate`).
+- `--no-ptr`: Disable reverse-DNS (PTR) lookup of IP targets in passive mode.
 - `--no-scan`: Skip the port scanning phase entirely.
 - `-k, --insecure`: Disable SSL verification for service checks.
 - `--ca-bundle`: Use a custom CA bundle for certificate verification.
@@ -71,14 +72,20 @@ python pdive++.py -t 192.168.1.0/24 -m active -p 80,443
 
 ### Full Reconnaissance
 ```bash
-# Passive discovery, WHOIS, and all-ports nmap scan for a domain
-python pdive++.py -t example.com -m active --all-ports
+# Subdomain enumeration, WHOIS, and all-ports nmap scan for a domain
+python pdive++.py -t example.com -m active -e --all-ports
 ```
 
 ### Default Passive Recon
 ```bash
-# Passive default: WHOIS + Amass/DNSDumpster/crt.sh + DNS metadata, no port/service scans
+# Passive default: WHOIS + DNS metadata for the supplied target only (no enumeration, no port/service scans)
 python pdive++.py -t example.com
+```
+
+### Passive Recon with Subdomain Enumeration
+```bash
+# Passive default plus all passive providers (Amass / DNSDumpster / crt.sh)
+python pdive++.py -t example.com -e
 ```
 
 ### Strict Passive Recon
@@ -93,30 +100,30 @@ python pdive++.py -t example.com --strict-passive
 python pdive++.py -t example.com --strict-active
 ```
 
-### Targeted Passive Discovery (OSINT Only)
+### Targeted Subdomain Enumeration (OSINT Only)
 ```bash
-# Run ONLY Amass discovery and WHOIS (skip port scanning)
+# Run ONLY Amass enumeration and WHOIS (skip port scanning)
 python pdive++.py -t example.com --amass --no-scan
 ```
 
 ### Combined Passive Tools
 ```bash
-# Run Amass and crt.sh discovery concurrently, then perform metadata lookup
+# Run Amass and crt.sh enumeration concurrently, then perform metadata lookup
 python pdive++.py -t example.com --amass --crtsh --no-scan
 ```
 
-### Disable Specific Passive Providers
+### Enumerate, Excluding a Specific Provider
 ```bash
-# Run default passive discovery without Amass
-python pdive++.py -t example.com --no-amass
+# Enable all providers except Amass
+python pdive++.py -t example.com -e --no-amass
 ```
 
 ### Passive Recon of an IP-Only Target List
 ```bash
-# Reverse-DNS each IP, then run passive providers against the discovered domains
+# Scan each IP and record its PTR record as metadata (no enumeration)
 python pdive++.py -f ip_targets.txt --strict-passive
 
-# Same input, but skip PTR expansion (IP targets contribute nothing in passive mode)
+# Same input, but skip the PTR lookup entirely
 python pdive++.py -f ip_targets.txt --strict-passive --no-ptr
 ```
 
@@ -128,31 +135,32 @@ python pdive++.py -t internal.local -k -v --ca-bundle ./internal-ca.pem
 
 ## Robust Scanning & Troubleshooting
 
-### Targeted Discovery
-Isolate specific passive discovery providers using `--amass`, `--dnsdumpster`, or `--crtsh`. When any of these flags are used, the tool switches to `passive` mode and only executes the selected providers. If you also pass `--mode active`, a warning is printed before the mode is overridden.
+### Subdomain Enumeration (Opt-in)
+Subdomain enumeration is **off by default** — a scan probes only the targets you supply, so a single IP or domain never fans out to other hosts. To enable it:
 
-When `--mode passive` is used without specific tool flags, all three providers run.
+- `-e/--enumerate` turns on all three providers (Amass, DNSDumpster, crt.sh).
+- `--amass`, `--dnsdumpster`, `--crtsh` each enable a single provider.
+- Combine a per-tool flag with others to build any subset (e.g. `--amass --crtsh`).
+- `--no-amass`, `--no-dnsdumpster`, `--no-crtsh` subtract a provider from `--enumerate` (e.g. `-e --no-amass` runs DNSDumpster and crt.sh only).
 
-Provider-specific disable flags (`--no-amass`, `--no-dnsdumpster`, `--no-crtsh`) remove individual providers from the default provider set. For example, `--no-amass` keeps DNSDumpster and crt.sh enabled while skipping Amass.
+Enumeration is independent of `--mode`: it can run in passive mode (default) or alongside active host discovery and scanning (`-m active -e`).
 
-### PTR Expansion of IP Targets
-The passive providers (Amass, DNSDumpster, crt.sh) take a domain as input, so a bare IP target has nothing to enumerate. To make passive mode useful against IP-only target lists, PDIve++ reverse-DNS (PTR) resolves each IP target in passive mode:
+### PTR Metadata for IP Targets
+The passive providers take a domain as input, so a bare IP has nothing to enumerate. In passive mode PDIve++ reverse-DNS (PTR) resolves each IP target and records the PTR hostname as the IP's `reverse_dns` metadata.
 
-- The PTR hostname (e.g. `host-64-202-143-139.cybera.net`) is recorded as a discovered host.
-- Its registrable domain (e.g. `cybera.net`) is derived and passed to the enabled passive providers.
-- Each registrable domain is queried only once, so a list of many IPs sharing a domain does not trigger duplicate provider queries.
+PDIve++ does **not** pivot from the PTR to its registrable domain or enumerate that domain. Earlier versions did, which turned a single IP target into a full-domain subdomain enumeration that fanned out to many unrelated addresses; that behavior has been removed. A single IP target is scanned as a single IP.
 
-IPs without a PTR record are skipped with a notice. This behavior is on by default in passive mode (including `--strict-passive`) and is disabled with `--no-ptr`. It has no effect in active mode, where IP targets are probed directly.
+The PTR lookup is on by default in passive mode (including `--strict-passive`) and is disabled with `--no-ptr`. It has no effect in active mode, where IP targets are probed directly.
 
 ### Strict Modes
-`--strict-passive` forces passive mode, disables WHOIS, disables Amass, and skips active port/service scanning. DNSDumpster and crt.sh remain enabled so the scan can still collect passive certificate/DNS-derived host data, and PTR expansion of IP targets still runs (disable with `--no-ptr`).
+`--strict-passive` forces passive mode, disables WHOIS, disables Amass, and skips active port/service scanning. DNSDumpster and crt.sh are not enabled by default (enumeration is opt-in), and PTR lookup of IP targets still runs (disable with `--no-ptr`).
 
-`--strict-active` forces active mode, disables WHOIS, and disables Amass, DNSDumpster, and crt.sh. Active host discovery and port/service scanning remain enabled unless `--no-scan` is also passed.
+`--strict-active` forces active mode, disables WHOIS, and disables all passive providers. Active host discovery and port/service scanning remain enabled unless `--no-scan` is also passed.
 
-Strict mode conflicts are rejected early. For example, `--strict-active --amass`, `--strict-active --mode passive`, and `--strict-passive --mode active` all fail with a parser error.
+Strict mode conflicts are rejected early. For example, `--strict-active --amass`, `--strict-active --enumerate`, `--strict-passive --enumerate`, `--strict-active --mode passive`, and `--strict-passive --mode active` all fail with a parser error.
 
 ### Concurrent Passive Discovery
-All passive providers (`amass`, `dnsdumpster`, `crtsh`) are dispatched concurrently. For multiple domains, each provider/domain combination runs in its own thread up to the configured thread limit.
+When enumeration is enabled, all selected providers (`amass`, `dnsdumpster`, `crtsh`) are dispatched concurrently. For multiple domains, each provider/domain combination runs in its own thread up to the configured thread limit.
 
 ### Amass Passive Mode
 Amass is always invoked with `-passive`, restricting it to OSINT data sources (certificate logs, APIs, DNS records) and preventing any active probing.
