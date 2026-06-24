@@ -154,7 +154,48 @@ python pdive++.py -t 127.0.0.1 -v --no-json
 # Look for: "Python interpreter: /path/to/python"
 ```
 
-## Troubleshooting
+## 8. Enable shell tab-completion (optional)
+
+PDIve++ supports `<TAB>` completion of flags and their values via [`argcomplete`](https://github.com/kislyuk/argcomplete). For example, `-f <TAB>` completes file paths, `-m <TAB>` completes `active`/`passive`, and `--<TAB>` lists all flags. This is optional — the tool runs normally whether or not `argcomplete` is installed.
+
+### Step 1 — Install argcomplete
+
+It is included in `requirements.txt`, so a normal install (Section 5) already provides it. To add it on its own:
+```bash
+pip install argcomplete
+```
+
+### Step 2 — Register completion (bash/zsh)
+
+Pick the approach that matches how you launch the tool.
+
+**A. You run it as `./pdive++.py` or `pdive++.py` (on `PATH`)**
+
+Register completion for the command directly, then reload your shell:
+```bash
+# make it executable once, so ./pdive++.py works
+chmod +x pdive++.py
+
+# add to ~/.bashrc (bash) — re-run reflects argument changes automatically
+eval "$(register-python-argcomplete pdive++.py)"
+```
+For zsh, enable bash-completion compatibility first:
+```zsh
+autoload -U bashcompinit && bashcompinit
+eval "$(register-python-argcomplete pdive++.py)"
+```
+
+**B. You run it as `python pdive++.py`**
+
+When the first word is `python`/`python3`, per-command registration does not apply. Use argcomplete's global activation, which keys off the `# PYTHON_ARGCOMPLETE_OK` marker already present at the top of `pdive++.py`:
+```bash
+activate-global-python-argcomplete --user   # writes a hook to ~/.bash_completion.d
+```
+Restart your shell afterward. Completion then works for any argcomplete-enabled script, including `python pdive++.py -f <TAB>`.
+
+> **Note:** Both `register-python-argcomplete` and `activate-global-python-argcomplete` ship with the `argcomplete` package. If they aren't found, ensure the environment where you installed `argcomplete` is active (e.g. your virtualenv's `bin/` is on `PATH`).
+
+
 
 ### Module Not Found Errors
 
@@ -186,6 +227,13 @@ python pdive++.py -t 127.0.0.1 -v
 - `Amass not found in PATH`: Follow the instructions in Section 2 above.
 - Windows (nmap): install Nmap for Windows and ensure `nmap.exe` is in `PATH`
 - On restricted environments, raw-socket scans may require elevated privileges or capabilities
+
+### Tab-completion not working
+
+- Confirm `argcomplete` is installed in the active environment: `python -c "import argcomplete"`.
+- Make sure you completed the registration step (Section 8) and **restarted your shell** afterward.
+- The registration approach must match your invocation: per-command registration only fires for `./pdive++.py` / `pdive++.py`, while `python pdive++.py` requires global activation (Section 8, options A vs B).
+- If you see the banner or other text appear in your completion list, you are running a build of the script from before tab-completion support was added — pull the latest `pdive++.py` (the completion call must run before the banner is printed).
 
 ### Important Note
 

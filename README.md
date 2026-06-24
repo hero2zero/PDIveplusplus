@@ -19,6 +19,7 @@ PDIve++ has been refactored into a modular Python package for better maintainabi
 - **DNS Resolution Caching**: Hostnames resolved during target validation are reused across metadata lookup and scanning phases — no duplicate queries.
 - **Flexible Port Selection**: Scan a specific port list with `-p/--ports`, the full TCP range with `--all-ports`, or the top 1000 ports by default.
 - **Selective Scanning**: Skip the port scanning phase for pure discovery/OSINT workflows with `--no-scan`.
+- **Shell Tab-Completion**: Optional `<TAB>` completion of flags and values (e.g. `-f <TAB>` completes file paths) via `argcomplete`. Setup in `INSTALL.md`.
 - **Modular Architecture**: Logic is separated into cohesive modules (`core`, `discovery`, `scanning`, `reporting`, `utils`).
 - **Real-time WHOIS**: WHOIS lookups for primary targets are performed and displayed at the start of the scan.
 - **Checkpoint Support**: Periodic checkpoints are saved during scanning and written on exit, enabling post-scan review of partial results.

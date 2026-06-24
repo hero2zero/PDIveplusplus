@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 import argparse
 import sys
 import os
 import logging
+
+try:
+    import argcomplete
+except ImportError:  # Optional dependency: enables shell tab-completion only.
+    argcomplete = None
+
 from lib.utils import (
     VERSION, Fore, Style, BANNER, ScannerConfig, logger,
     detect_virtualenv, check_sudo_venv_mismatch,
@@ -11,7 +18,6 @@ from lib.utils import (
 from lib.core import PDIve
 
 def main():
-    print(BANNER)
     parser = argparse.ArgumentParser(description=f'PDIve++ v{VERSION} - Automated Network Reconnaissance')
     
     # Target selection
@@ -62,6 +68,15 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
     parser.add_argument('--version', action='version', version=f'PDIve++ {VERSION}')
 
+    # Enable shell tab-completion when argcomplete is installed and active. This
+    # must run after all arguments are defined and before anything is written to
+    # stdout (the banner), so the shell's completion request receives only
+    # completion data. -f/--file and other path args use argcomplete's default
+    # file completer automatically. During a normal run this is a no-op.
+    if argcomplete is not None:
+        argcomplete.autocomplete(parser)
+
+    print(BANNER)
     args = parser.parse_args()
 
     if args.amass and args.no_amass:

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **`-e/--enumerate` flag**: Enables subdomain enumeration via all passive providers at once. Off by default; combine with `--no-amass`/`--no-dnsdumpster`/`--no-crtsh` to subtract individual providers.
+- **Shell tab-completion via `argcomplete`**: `pdive++.py` now carries the `# PYTHON_ARGCOMPLETE_OK` marker and calls `argcomplete.autocomplete(parser)` before any stdout is written, so `<TAB>` completes flags and values (e.g. `-f <TAB>` completes file paths). The import is optional, so the tool still runs when `argcomplete` is absent. Added `argcomplete` to `requirements.txt` and a setup/registration guide to `INSTALL.md`. The banner print was moved after the completion call so it no longer corrupts completion output.
 
 ### Removed
 - **PTR-to-registrable-domain pivot removed.** In passive mode a bare IP target's PTR record is now recorded as metadata only; PDIve++ no longer derives the PTR's registrable domain and runs the passive providers against it. That pivot turned a single IP into a full-domain enumeration that scanned many unrelated addresses. The `--no-ptr` flag now controls the metadata PTR lookup; the `registrable_domain()`-based fan-out path and its imports were removed from `Discovery.passive_discovery()`.
