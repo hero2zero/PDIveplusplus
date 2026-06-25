@@ -22,6 +22,13 @@ python pdive++.py -t <target> [options]
 python pdive++.py -f <targets_file> -v -k [options]
 ```
 
+If you installed the package (`pip install .`), the `pdive` command is
+equivalent to `python pdive++.py` and can be used anywhere:
+
+```bash
+pdive -t <target> [options]
+```
+
 ## Key Options
 
 ### General Selection

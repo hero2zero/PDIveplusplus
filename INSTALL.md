@@ -107,6 +107,26 @@ pip install -r requirements.txt
 
 **Note:** The `python-whois` package is NOT the same as the `whois` CLI tool from `apt`. Installing `apt install whois` does not provide the Python module.
 
+### Optional: install as a `pdive` command
+
+Installing the project (instead of only its dependencies) puts a `pdive`
+console script on your `PATH`, so you can run it from anywhere without
+`python pdive++.py`:
+
+```bash
+pip install .            # core dependencies + the `pdive` command
+pdive -t example.com
+```
+
+Optional feature groups can be pulled in as extras:
+
+```bash
+pip install ".[scan,whois,completion]"   # python-nmap, python-whois, argcomplete
+pip install ".[dev]"                      # pytest, for running the test suite
+```
+
+Running `python pdive++.py ...` from a clone continues to work unchanged.
+
 ## 6. Verify optional binaries in PATH
 
 ```bash
@@ -169,9 +189,22 @@ pip install argcomplete
 
 Pick the approach that matches how you launch the tool.
 
-**A. You run it as `./pdive++.py` or `pdive++.py` (on `PATH`)**
+**A. You installed the `pdive` command (`pip install .` — recommended)**
 
-Register completion for the command directly, then reload your shell:
+This is the cleanest path. Register completion for the `pdive` command:
+```bash
+# add to ~/.bashrc (bash)
+eval "$(register-python-argcomplete pdive)"
+```
+For zsh, enable bash-completion compatibility first:
+```zsh
+autoload -U bashcompinit && bashcompinit
+eval "$(register-python-argcomplete pdive)"
+```
+
+**B. You run it as `./pdive++.py` or `pdive++.py` (on `PATH`)**
+
+Register completion for the script directly, then reload your shell:
 ```bash
 # make it executable once, so ./pdive++.py works
 chmod +x pdive++.py
@@ -185,7 +218,7 @@ autoload -U bashcompinit && bashcompinit
 eval "$(register-python-argcomplete pdive++.py)"
 ```
 
-**B. You run it as `python pdive++.py`**
+**C. You run it as `python pdive++.py`**
 
 When the first word is `python`/`python3`, per-command registration does not apply. Use argcomplete's global activation, which keys off the `# PYTHON_ARGCOMPLETE_OK` marker already present at the top of `pdive++.py`:
 ```bash
@@ -195,7 +228,19 @@ Restart your shell afterward. Completion then works for any argcomplete-enabled 
 
 > **Note:** Both `register-python-argcomplete` and `activate-global-python-argcomplete` ship with the `argcomplete` package. If they aren't found, ensure the environment where you installed `argcomplete` is active (e.g. your virtualenv's `bin/` is on `PATH`).
 
+## 9. Running the tests (developers)
 
+The unit tests cover the pure helper functions (port parsing, hostname/domain validation, target loading). They require no network access.
+
+```bash
+# inside your activated virtualenv
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+Tests live in `tests/`; configuration is in `pytest.ini`. `conftest.py` puts the repo root on `sys.path` so `import lib.*` resolves when running `pytest` from the project root.
+
+## Troubleshooting
 
 ### Module Not Found Errors
 
@@ -232,7 +277,7 @@ python pdive++.py -t 127.0.0.1 -v
 
 - Confirm `argcomplete` is installed in the active environment: `python -c "import argcomplete"`.
 - Make sure you completed the registration step (Section 8) and **restarted your shell** afterward.
-- The registration approach must match your invocation: per-command registration only fires for `./pdive++.py` / `pdive++.py`, while `python pdive++.py` requires global activation (Section 8, options A vs B).
+- The registration approach must match your invocation: per-command registration fires for the installed `pdive` command or for `./pdive++.py` / `pdive++.py`, while `python pdive++.py` requires global activation (Section 8, options A/B vs C).
 - If you see the banner or other text appear in your completion list, you are running a build of the script from before tab-completion support was added — pull the latest `pdive++.py` (the completion call must run before the banner is printed).
 
 ### Important Note

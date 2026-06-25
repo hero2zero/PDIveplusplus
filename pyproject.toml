@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdiveplusplus"
+dynamic = ["version"]
+description = "Modular CLI for authorized network reconnaissance and discovery workflows"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "colorama>=0.4.6",
+    "requests>=2.31.0",
+    "urllib3>=2.0.0",
+]
+
+[project.optional-dependencies]
+scan = ["python-nmap>=0.7.1"]
+whois = ["python-whois>=0.9.0"]
+completion = ["argcomplete>=3.1.0"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+pdive = "lib.cli:main"
+
+[tool.setuptools]
+packages = ["lib"]
+
+[tool.setuptools.dynamic]
+version = {attr = "lib.utils.VERSION"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+warn_unused_ignores = true

@@ -1,5 +1,7 @@
 # PDIve++
 
+[![tests](https://github.com/hero2zero/PDIveplusplus/actions/workflows/tests.yml/badge.svg)](https://github.com/hero2zero/PDIveplusplus/actions/workflows/tests.yml)
+
 PDIve++ is a modular CLI tool for authorized network reconnaissance and discovery workflows.
 Current Version: v1.10.0
 
@@ -30,17 +32,29 @@ PDIve++ has been refactored into a modular Python package for better maintainabi
 1. Install dependencies and prerequisites: see `INSTALL.md`
 2. Run a scan: see `USAGE.md`
 
+Run it directly from a clone with `python pdive++.py -t example.com`, or install
+it (`pip install .`) to get a `pdive` command on your `PATH`:
+
+```bash
+pip install .
+pdive -t example.com
+```
+
 ## Project Structure
 
 ```text
 PDIveplusplus/
 ├── lib/                    # Core package
+│   ├── __init__.py
+│   ├── cli.py              # CLI entry point (argument parsing + main())
 │   ├── core.py             # Scan orchestration
 │   ├── discovery.py        # Passive & active discovery
 │   ├── scanning.py         # Port & service scanning
 │   ├── reporting.py        # Report generation
 │   └── utils.py            # Helpers & configuration
-├── pdive++.py              # CLI entry point
+├── pdive++.py              # Backward-compatible launcher (shim for lib.cli:main)
+├── pyproject.toml          # Packaging, console script, tooling config
+├── tests/                  # Unit tests (pytest)
 ├── INSTALL.md
 ├── USAGE.md
 ├── CHANGELOG.md
