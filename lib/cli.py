@@ -7,29 +7,37 @@ the `pdive` console script (see pyproject.toml) and via the backward-compatible
 `pdive++.py` launcher at the repo root.
 """
 import argparse
-import sys
 import logging
+import sys
 
 try:
     import argcomplete
 except ImportError:  # Optional dependency: enables shell tab-completion only.
-    argcomplete = None
+    argcomplete = None  # type: ignore[assignment]
 
-from .utils import (
-    VERSION, Fore, Style, BANNER, ScannerConfig, logger,
-    detect_virtualenv, check_sudo_venv_mismatch,
-    load_targets_from_file, validate_targets, parse_port_spec
-)
 from .core import PDIve
+from .utils import (
+    BANNER,
+    VERSION,
+    Fore,
+    ScannerConfig,
+    Style,
+    check_sudo_venv_mismatch,
+    load_targets_from_file,
+    logger,
+    parse_port_spec,
+    validate_targets,
+)
+
 
 def main():
     parser = argparse.ArgumentParser(description=f'PDIve++ v{VERSION} - Automated Network Reconnaissance')
-    
+
     # Target selection
     target_group = parser.add_mutually_exclusive_group(required=False)
     target_group.add_argument('-t', '--target', help='Target IP, CIDR, or hostname (comma-separated for multiple)')
     target_group.add_argument('-f', '--file', help='File containing targets, one per line')
-    
+
     parser.add_argument('-o', '--output', default='pdive_output', help='Output directory (default: pdive_output)')
     parser.add_argument('-T', '--threads', type=int, default=50, help='Number of threads (default: 50)')
     parser.add_argument('-m', '--mode', choices=['active', 'passive'], default=None, help='Discovery mode (default: passive)')
@@ -44,7 +52,7 @@ def main():
         action='store_true',
         help='Run active-only discovery/scanning against supplied targets; disables WHOIS and passive discovery providers'
     )
-    
+
     parser.add_argument('--ping', action='store_true', help='Enable ICMP ping discovery')
 
     port_group = parser.add_mutually_exclusive_group()
@@ -111,7 +119,7 @@ def main():
         targets = load_targets_from_file(args.file)
     elif args.target:
         targets = [t.strip() for t in args.target.split(',') if t.strip()]
-    
+
     if not targets:
         print(f"{Fore.RED}[-] Error: No targets specified{Style.RESET_ALL}")
         parser.print_help()

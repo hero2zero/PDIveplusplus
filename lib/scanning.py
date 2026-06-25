@@ -1,15 +1,19 @@
-import os
-import sys
 import socket
+import sys
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any, Optional, Union
+from typing import Any, Dict, List, Union
 
 from .utils import (
-    Fore, Style, HAS_REQUESTS, HAS_NMAP, HAS_WHOIS, VERSION,
-    ScannerConfig, TOP_1000_PORTS,
+    HAS_NMAP,
+    HAS_REQUESTS,
+    HAS_WHOIS,
+    TOP_1000_PORTS,
+    Fore,
+    ScannerConfig,
+    Style,
 )
+
 
 class Scanner:
     def __init__(self, config: ScannerConfig):
@@ -70,8 +74,9 @@ class Scanner:
             print(f"\n{Fore.RED}[-] Nmap module not available, using basic identification{Style.RESET_ALL}")
             return self._basic_service_enumeration(scan_results)
 
-        import nmap
         import shutil
+
+        import nmap
         if not shutil.which('nmap'):
             print(f"\n{Fore.RED}[-] Nmap binary not found in PATH, using basic identification{Style.RESET_ALL}")
             return self._basic_service_enumeration(scan_results)
@@ -81,11 +86,11 @@ class Scanner:
         except Exception as e:
             print(f"\n{Fore.RED}[-] Failed to initialize Nmap: {e}{Style.RESET_ALL}")
             return self._basic_service_enumeration(scan_results)
-        
+
         updated_results = scan_results.copy()
         for host, ports in scan_results.items():
             if not ports: continue
-            
+
             port_list = ','.join(ports.keys())
             print(f"{Fore.CYAN}[*] Nmap service scan on {host} ports: {port_list}{Style.RESET_ALL}")
 
@@ -130,7 +135,7 @@ class Scanner:
                         if str(port) in updated_results[host]:
                             updated_results[host][str(port)]["service"] = details
                             print(f"{Fore.GREEN}[+] Nmap service: {host}:{port} -> {details}{Style.RESET_ALL}")
-        
+
         return updated_results
 
     def _basic_service_enumeration(self, scan_results: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -148,7 +153,7 @@ class Scanner:
             80: "http", 443: "https", 3306: "mysql", 3389: "rdp", 8080: "http-proxy"
         }
         service = service_map.get(int(port), "unknown")
-        
+
         if HAS_REQUESTS and service in ["http", "https", "http-alt", "https-alt"]:
             import requests
             protocol = "https" if "https" in service else "http"
@@ -170,7 +175,7 @@ class Scanner:
         try:
             # print(f"{Fore.CYAN}[*] WHOIS lookup for {target}...{Style.RESET_ALL}") # Moved to core for real-time control
             w = whois.whois(target)
-            
+
             # Extract more comprehensive information if available
             def _clean(val):
                 if isinstance(val, list):

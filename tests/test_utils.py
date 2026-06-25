@@ -8,10 +8,10 @@ import pytest
 
 from lib import utils
 from lib.utils import (
+    load_targets_from_file,
     parse_port_spec,
     registrable_domain,
     validate_targets,
-    load_targets_from_file,
 )
 
 

@@ -1,11 +1,12 @@
-import os
-import json
 import csv
+import json
+import os
 import threading
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 from .utils import Fore, Style, _show_progress_bar
+
 
 class Reporter:
     def __init__(self, output_dir: str):
@@ -15,14 +16,14 @@ class Reporter:
     def generate_report(self, results: Dict[str, Any]):
         """Generate scan reports in various formats"""
         print(f"\n{Fore.YELLOW}[+] Generating Reports...{Style.RESET_ALL}")
-        
+
         stop_event = threading.Event()
         progress_thread = threading.Thread(target=_show_progress_bar, args=(stop_event, "Generating reports"), daemon=True)
         progress_thread.start()
 
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            
+
             # JSON Report
             json_path = os.path.join(self.output_dir, f"report_{timestamp}.json")
             with open(json_path, 'w') as f:
@@ -32,15 +33,15 @@ class Reporter:
             # Text Summary
             txt_path = os.path.join(self.output_dir, f"report_{timestamp}.txt")
             with open(txt_path, 'w') as f:
-                f.write(f"PDIve++ Scan Report\n")
+                f.write("PDIve++ Scan Report\n")
                 f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write("=" * 50 + "\n\n")
-                
+
                 for host, data in results.get("hosts", {}).items():
                     f.write(f"Host: {host} ({data.get('status', 'unknown')})\n")
                     f.write(f"IP: {data.get('ip_address', 'N/A')}\n")
                     f.write(f"Reverse DNS: {data.get('reverse_dns', 'N/A')}\n")
-                    
+
                     ports = data.get("ports", {})
                     if ports:
                         f.write("Open Ports:\n")
@@ -54,12 +55,12 @@ class Reporter:
             with open(csv_path, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(['Host', 'IP_Address', 'Reverse_DNS', 'Port', 'Protocol', 'State', 'Service'])
-                
+
                 for host, data in results.get("hosts", {}).items():
                     ip_address = data.get("ip_address", "N/A")
                     reverse_dns = data.get("reverse_dns", "N/A")
                     ports = data.get("ports", {})
-                    
+
                     if ports:
                         for port, port_data in ports.items():
                             writer.writerow([

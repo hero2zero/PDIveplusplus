@@ -1,18 +1,16 @@
-import os
-import sys
-import socket
 import ipaddress
-import threading
-import subprocess
-import shutil
+import os
 import re
+import shutil
+import socket
+import subprocess
+import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Set, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Set
 
-from .utils import (
-    Fore, Style, HAS_REQUESTS, VERSION, ScannerConfig,
-    _show_progress
-)
+from .utils import HAS_REQUESTS, VERSION, Fore, ScannerConfig, Style, _show_progress
+
 
 class Discovery:
     def __init__(self, config: ScannerConfig):
@@ -62,10 +60,11 @@ class Discovery:
         for target in scan_targets:
             try:
                 network = ipaddress.ip_network(target, strict=False)
-                hosts = list(network.hosts()) if network.num_addresses > 1 else [network.network_address]
+                addrs = list(network.hosts()) if network.num_addresses > 1 else [network.network_address]
+                hosts = [str(host) for host in addrs]
             except ValueError:
                 hosts = [target]
-            all_hosts.extend([str(host) for host in hosts])
+            all_hosts.extend(hosts)
 
         all_hosts = list(set(all_hosts))
         live_hosts = set()
@@ -165,8 +164,8 @@ class Discovery:
         gated by --no-ptr. This avoids fanning a single IP out to a whole domain.
         """
         print(f"\n{Fore.YELLOW}[+] Starting Passive Discovery...{Style.RESET_ALL}")
-        discovered_hosts = set()
-        queried_domains = set()
+        discovered_hosts: Set[str] = set()
+        queried_domains: Set[str] = set()
 
         for target in self.config.targets:
             domain = self.extract_domain(target)
@@ -177,12 +176,12 @@ class Discovery:
 
     def amass_discovery(self, domain: str) -> Set[str]:
         """Use amass for passive subdomain enumeration"""
-        discovered_hosts = set()
+        discovered_hosts: Set[str] = set()
         print(f"{Fore.CYAN}[*] Running amass on {domain}...{Style.RESET_ALL}")
 
         amass_path = os.path.expanduser('~/go/bin/amass')
         if not os.path.exists(amass_path):
-            amass_path = shutil.which('amass')
+            amass_path = shutil.which('amass') or ''
 
         if not amass_path:
             print(f"{Fore.RED}[-] Amass not found, skipping{Style.RESET_ALL}")
@@ -191,29 +190,27 @@ class Discovery:
         cmd = [amass_path, 'enum', '-d', domain]
         progress_stop = threading.Event()
         timeout_msg = f"Amass scan in progress (timeout: {self.config.amass_timeout}s)" if self.config.amass_timeout else "Amass scan in progress"
-        
+
         progress_thread = threading.Thread(target=_show_progress, args=(progress_stop, timeout_msg), daemon=True)
         progress_thread.start()
 
-        stdout, stderr, returncode = "", "", 0
+        stdout = ""
         try:
             if self.config.amass_timeout:
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 try:
-                    stdout, stderr = process.communicate(timeout=self.config.amass_timeout)
-                    returncode = process.returncode
+                    stdout, _ = process.communicate(timeout=self.config.amass_timeout)
                 except subprocess.TimeoutExpired:
                     process.terminate()
                     try:
-                        stdout, stderr = process.communicate(timeout=5)
+                        stdout, _ = process.communicate(timeout=5)
                     except subprocess.TimeoutExpired:
                         process.kill()
-                        stdout, stderr = process.communicate(timeout=5)
-                    returncode = -1
+                        stdout, _ = process.communicate(timeout=5)
                     print(f"\n{Fore.YELLOW}[!] Amass timeout reached, processing partial results...{Style.RESET_ALL}")
             else:
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
+                stdout = result.stdout
         except Exception as e:
             print(f"{Fore.RED}[-] Amass execution error: {e}{Style.RESET_ALL}")
         finally:
@@ -233,7 +230,7 @@ class Discovery:
 
     def dnsdumpster_discovery(self, domain: str) -> Set[str]:
         """Use dnsdumpster.com API for passive DNS discovery"""
-        discovered_hosts = set()
+        discovered_hosts: Set[str] = set()
         if not HAS_REQUESTS:
             return discovered_hosts
 
@@ -244,7 +241,7 @@ class Discovery:
             headers = {'User-Agent': f'PDIve++/{VERSION}'}
             url = 'https://dnsdumpster.com/'
             page = session.get(url, headers=headers, timeout=15)
-            
+
             csrf_token = None
             csrf_match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.text)
             if csrf_match:
@@ -272,13 +269,12 @@ class Discovery:
 
     def crtsh_discovery(self, domain: str) -> Set[str]:
         """Use crt.sh certificate transparency logs for subdomain discovery"""
-        discovered_hosts = set()
+        discovered_hosts: Set[str] = set()
         if not HAS_REQUESTS:
             return discovered_hosts
 
         try:
             import requests
-            import json
             print(f"{Fore.CYAN}[*] Querying crt.sh for {domain}...{Style.RESET_ALL}")
             url = f'https://crt.sh/?q=%.{domain}&output=json'
             response = requests.get(url, timeout=30, headers={'User-Agent': f'PDIve++/{VERSION}'})

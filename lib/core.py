@@ -1,18 +1,15 @@
-import os
-import json
 import ipaddress
+import json
 import threading
 import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict
 
-from .utils import (
-    Fore, Style, VERSION, BANNER, ScannerConfig, HAS_WHOIS,
-    resolve_domain_to_ip, reverse_dns_lookup
-)
 from .discovery import Discovery
-from .scanning import Scanner
 from .reporting import Reporter
+from .scanning import Scanner
+from .utils import HAS_WHOIS, VERSION, Fore, ScannerConfig, Style, resolve_domain_to_ip, reverse_dns_lookup
+
 
 def _is_ip_literal(host: str) -> bool:
     """True if host is a bare IP address (not a hostname)."""
@@ -28,7 +25,7 @@ class PDIve:
         self.discovery = Discovery(config)
         self.scanner = Scanner(config)
         self.reporter = Reporter(config.output_dir)
-        
+
         self.results = {
             "scan_info": {
                 "targets": config.targets,
@@ -39,12 +36,12 @@ class PDIve:
             "hosts": {},
             "unresponsive_hosts": 0
         }
-        
-        self.scan_state = {
+
+        self.scan_state: Dict[str, Any] = {
             "completed_phases": [],
             "live_hosts": []
         }
-        
+
         self._checkpoint_lock = threading.Lock()
         self._checkpoint_stop_event = threading.Event()
         self._checkpoint_thread = None
@@ -72,18 +69,18 @@ class PDIve:
     def run(self):
         """Execute the full scan workflow"""
         print(f"{Fore.CYAN}PDIve++ v{VERSION} starting...{Style.RESET_ALL}")
-        
+
         # 1. WHOIS Lookups for primary targets (Real-time)
         if self.config.enable_whois and HAS_WHOIS:
             print(f"\n{Fore.YELLOW}[+] Performing WHOIS Lookups for targets...{Style.RESET_ALL}")
             if "whois" not in self.results:
                 self.results["whois"] = {}
-                
+
             for target in self.config.targets:
                 # Basic validation: only WHOIS valid domains or IPs
                 print(f"{Fore.CYAN}[*] WHOIS lookup for {target}...{Style.RESET_ALL}")
                 whois_data = self.scanner.whois_lookup(target)
-                
+
                 if "error" not in whois_data:
                     self.results["whois"][target] = whois_data
                     # Real-time print of results

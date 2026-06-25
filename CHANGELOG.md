@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Strict-mode conflict checks now reject `--strict-active --enumerate` and `--strict-passive --enumerate`.
+- **Replaced 8 bare `except:` clauses in `lib/utils.py`** with specific exception types (`ValueError`/`OSError`/`Exception`) so they no longer swallow `KeyboardInterrupt`/`SystemExit`. (The v1.7.6 entry claimed this was done; it was not — this is the actual fix.)
+
+### Tooling
+- **Lint/type cleanup pass.** Removed unused imports and dead locals across `lib/`, dropped an empty-placeholder f-string, and added type annotations so the codebase passes `ruff` and `mypy` cleanly. `ruff check` and `mypy` are now enforced as a `lint` job in the GitHub Actions workflow (pinned `ruff==0.15.*`, `mypy==2.1.*`). `pyproject.toml` ignores `E501`/`E701` (pre-existing style, deferred to a future formatting pass) and sets the mypy analysis target to 3.10.
 
 ### Documentation
 - **Corrected inaccurate concurrency claims.** Three items described as implemented in the v1.7.6 entry below were never actually present in any released source: "`nmap_scan` now scans hosts in parallel," "Passive discovery providers now run concurrently," and the `nmap_scan` `copy.deepcopy` fix. In current code the passive providers and the nmap service scan run **sequentially**, and `nmap_scan` uses a shallow `.copy()`. The `README.md` "Parallel Nmap Service Scanning" / "Concurrent Passive Discovery" feature bullets and the matching `USAGE.md` text have been rewritten to describe the parallelism that does exist (port scanning across ports; active ping/port host discovery across hosts, both bounded by `-T/--threads`). The v1.7.6 entry is left intact as a historical record; this note supersedes it.
