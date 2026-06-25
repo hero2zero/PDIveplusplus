@@ -19,6 +19,17 @@ def _is_ip_literal(host: str) -> bool:
     except ValueError:
         return False
 
+def _is_multi_host_network(target: str) -> bool:
+    """True if target is a CIDR/range covering more than one address.
+
+    Single hosts (a bare IP, a /32, or a hostname) return False; an actual
+    range like 10.0.0.0/24 returns True.
+    """
+    try:
+        return ipaddress.ip_network(target, strict=False).num_addresses > 1
+    except ValueError:
+        return False
+
 class PDIve:
     def __init__(self, config: ScannerConfig):
         self.config = config
@@ -66,6 +77,36 @@ class PDIve:
             if self._checkpoint_stop_event.is_set(): break
             self._save_checkpoint()
 
+    def _active_live_hosts(self):
+        """Assemble the live-host list for active mode.
+
+        Explicitly-supplied single-host targets (individual IPs / hostnames) are
+        ALWAYS scanned — they are never dropped by the host-discovery liveness
+        probe. Only multi-host CIDR ranges and enumerated subdomains are routed
+        through host_discovery, which expands ranges and filters out hosts that
+        do not answer the ping/port probe.
+        """
+        always_scan = []
+        discovery_inputs = []
+        for target in self.config.targets:
+            if _is_multi_host_network(target):
+                discovery_inputs.append(target)
+            else:
+                always_scan.append(target)
+
+        if self.config.enable_amass or self.config.enable_dnsdumpster or self.config.enable_crtsh:
+            discovered = self.discovery.passive_discovery()
+            if discovered:
+                print(f"{Fore.CYAN}[*] Passive enumeration discovered {len(discovered)} subdomain(s); including in active host discovery{Style.RESET_ALL}")
+            discovery_inputs.extend(h for h in discovered if h not in discovery_inputs)
+
+        live_hosts = list(always_scan)
+        if discovery_inputs:
+            discovery_results = self.discovery.host_discovery(discovery_inputs)
+            live_hosts.extend(h for h in discovery_results["live_hosts"] if h not in live_hosts)
+            self.results["unresponsive_hosts"] = discovery_results["unresponsive_count"]
+        return live_hosts
+
     def run(self):
         """Execute the full scan workflow"""
         print(f"{Fore.CYAN}PDIve++ v{VERSION} starting...{Style.RESET_ALL}")
@@ -103,17 +144,7 @@ class PDIve:
                 live_hosts.extend(h for h in discovered if h not in live_hosts)
             self.scan_state["live_hosts"] = live_hosts
         else:
-            # Active mode: run passive subdomain enumeration first, then probe everything
-            combined_targets = list(self.config.targets)
-            if self.config.enable_amass or self.config.enable_dnsdumpster or self.config.enable_crtsh:
-                discovered = self.discovery.passive_discovery()
-                if discovered:
-                    print(f"{Fore.CYAN}[*] Passive enumeration discovered {len(discovered)} subdomain(s); including in active host discovery{Style.RESET_ALL}")
-                combined_targets.extend(h for h in discovered if h not in combined_targets)
-
-            discovery_results = self.discovery.host_discovery(combined_targets)
-            self.scan_state["live_hosts"] = discovery_results["live_hosts"]
-            self.results["unresponsive_hosts"] = discovery_results["unresponsive_count"]
+            self.scan_state["live_hosts"] = self._active_live_hosts()
 
         # 3. Metadata Lookup (DNS/rDNS)
         print(f"\n{Fore.YELLOW}[+] Performing Metadata Lookups...{Style.RESET_ALL}")
